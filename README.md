@@ -86,6 +86,29 @@ SharedWorker의 장점인 "원본이 한 곳"과 "쓰는 곳이 한 곳"은 CRDT
 
 Yjs에는 BroadcastChannel 전용 provider가 없어 직접 작성합니다(`features/collab/broadcast-provider.ts`). `y-webrtc`도 내부에서 BroadcastChannel을 쓰지만, WebRTC 의존성이 딸려 오고 "브라우저 API만으로"라는 조건에서 동작을 명확히 설명하기 어려워 사용하지 않았습니다.
 
+### 셀 데이터는 1단계(단독 편집)부터 Y.Doc에
+
+공동 편집(2단계) 전에는 React 상태로도 충분하지만, 그렇게 시작하면 2단계에서 저장 구조·편집 연산·구독을 전부 다시 쓰고 그 사이 "상태는 한 곳에만" 규칙을 위반한 상태를 거칩니다.
+
+- **선택**: 처음부터 `cells: Y.Map`에 저장하고, UI는 store의 `subscribe`/`getCellValue`(`useSyncExternalStore`)로만 읽는다. 로컬 편집은 전부 `LOCAL_ORIGIN` transact로 실행한다.
+- **검토한 대안**: React `Map` 상태로 시작 — 1단계 코드는 약간 단순하지만 2단계에서 전면 재작성.
+- **트레이드오프**: provider 없는 Y.Doc은 관찰 가능한 Map일 뿐이라 1단계 비용은 거의 없다. 2단계에서는 session에 persistence·provider·UndoManager만 추가하면 되고 store·UI는 바뀌지 않는다.
+
+### 셀 편집기: 항상 포커스를 유지하는 단일 input
+
+한글(IME)로 "바로 입력"을 시작할 때 첫 글자가 유실되지 않아야 합니다(S2 P0). 편집 진입 시 input을 마운트하고 포커스를 옮기는 방식은 `compositionstart`가 포커스 이동 전에 발생해 첫 글자가 빠지거나 분리됩니다.
+
+- **선택**: input 하나를 항상 포커스해 활성 셀 위에 투명하게 두고, 편집 모드에서만 보이게 전환한다. 조합이 시작된 요소가 그대로 편집기가 되므로 IME가 끊기지 않는다. 조합 중 특수 키는 `isComposing`으로 한 곳(`useGridKeyboard`)에서 무시한다.
+- **검토한 대안**: 편집 진입 시 input 마운트 — 코드가 직관적이지만 IME 첫 글자 유실(S2 P0 결함).
+- **트레이드오프**: 포커스를 이 input에 유지·복구하는 관리 코드가 필요하다(셀 pointerdown에서 재포커스).
+
+### 명세 해석: 비편집 상태의 Enter는 편집 모드 진입 (D12)
+
+S2(Enter=이어서 편집)와 S3 표(Enter=아래로 이동)가 충돌해 하나를 골라야 했습니다.
+
+- **선택**: Google Sheets와 같은 "편집 모드 진입". Enter로 편집 시작 → 다시 Enter로 확정 후 아래 이동. `docs/spec.md` S3 표를 함께 수정했다.
+- **검토한 대안**: Excel식 "아래로 이동" — 편집 진입 수단이 F2·더블클릭만 남아 키보드 위주 사용이 불편.
+
 ### 폴더 구조와 의존 방향
 
 같이 바뀌는 코드끼리 모으기 위해 기술 종류(components, hooks 등)가 아니라 **기능 단위**로 나눴습니다.

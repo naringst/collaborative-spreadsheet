@@ -8,4 +8,5 @@
  * 의존 규칙: collab·ai·session을 import하지 않는다.
  * 다른 모듈은 이 파일에서 export한 것만 사용한다.
  */
-export {};
+export { createSheetStore, type SheetStore } from "./store/sheet-store";
+export { SheetGrid } from "./ui/Grid";
