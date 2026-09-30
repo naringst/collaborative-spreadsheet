@@ -1,0 +1,19 @@
+import type { ReactNode } from "react";
+
+/** 로드 대기 등 중앙 안내 문구 */
+export function CenteredNotice({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-full items-center justify-center text-sm text-gray-500">
+      {children}
+    </div>
+  );
+}
+
+/** 저장소를 쓸 수 없을 때의 경고 배너 (S6) */
+export function StorageWarningBanner() {
+  return (
+    <div className="border-b border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-900">
+      브라우저 저장소를 사용할 수 없어 변경 사항이 저장되지 않습니다.
+    </div>
+  );
+}

@@ -25,7 +25,8 @@ export interface BroadcastProvider {
 export function createBroadcastProvider(opts: {
   channelName: string;
   doc: Y.Doc;
-  awareness: Awareness;
+  /** 참여자 개념이 없는 문서(시트 목록)는 생략 — awareness 송수신을 하지 않는다 */
+  awareness?: Awareness;
 }): BroadcastProvider {
   const { channelName, doc, awareness } = opts;
   const channel = new BroadcastChannel(channelName);
@@ -35,7 +36,7 @@ export function createBroadcastProvider(opts: {
   const provider: BroadcastProvider = {
     destroy() {
       doc.off("update", onDocUpdate);
-      awareness.off("update", onAwarenessUpdate);
+      awareness?.off("update", onAwarenessUpdate);
       channel.close();
     },
   };
@@ -50,7 +51,7 @@ export function createBroadcastProvider(opts: {
     changes: { added: number[]; updated: number[]; removed: number[] },
     origin: unknown,
   ) => {
-    if (origin === provider) return;
+    if (origin === provider || !awareness) return;
     const changed = [...changes.added, ...changes.updated, ...changes.removed];
     post({
       type: "awareness",
@@ -71,12 +72,14 @@ export function createBroadcastProvider(opts: {
           stateVector: Y.encodeStateVector(doc),
         });
         // 새 탭이 내 awareness를 바로 볼 수 있게 전체 상태를 보낸다 (C1)
-        post({
-          type: "awareness",
-          payload: encodeAwarenessUpdate(awareness, [
-            ...awareness.getStates().keys(),
-          ]),
-        });
+        if (awareness) {
+          post({
+            type: "awareness",
+            payload: encodeAwarenessUpdate(awareness, [
+              ...awareness.getStates().keys(),
+            ]),
+          });
+        }
         break;
       }
       case "sync-response": {
@@ -87,18 +90,21 @@ export function createBroadcastProvider(opts: {
         break;
       }
       case "awareness":
-        applyAwarenessUpdate(awareness, message.payload, provider);
+        if (awareness)
+          applyAwarenessUpdate(awareness, message.payload, provider);
         break;
     }
   };
 
   doc.on("update", onDocUpdate);
-  awareness.on("update", onAwarenessUpdate);
+  awareness?.on("update", onAwarenessUpdate);
   post({ type: "sync-request", stateVector: Y.encodeStateVector(doc) });
-  post({
-    type: "awareness",
-    payload: encodeAwarenessUpdate(awareness, [doc.clientID]),
-  });
+  if (awareness) {
+    post({
+      type: "awareness",
+      payload: encodeAwarenessUpdate(awareness, [doc.clientID]),
+    });
+  }
 
   return provider;
 }

@@ -16,6 +16,7 @@ description: 이 저장소의 폴더 구조, 의존 방향, Yjs·React 사용 �
 | `src/features/sheet/store/` | Y.Doc 안의 데이터 구조, 편집 연산(ops), UndoManager          | React, 전송·저장           |
 | `src/features/sheet/ui/`    | Grid, Cell, Toolbar, 선택·키보드·편집 모드                   | Yjs 직접 접근              |
 | `src/features/collab/`      | y-indexeddb, BroadcastChannel provider, awareness            | 셀·시트 개념               |
+| `src/features/sheet-list/`  | 시트 목록(id·이름·생성시각) Y.Doc 구조와 ops, 목록 UI        | 셀 개념, 라우팅·세션 조립  |
 | `src/features/collab/ui/`   | 참여자 목록, 다른 참여자 선택 오버레이                       | Yjs 문서 수정              |
 | `src/features/ai/`          | (3단계) 스키마, diff·충돌 판정, 스트리밍 클라이언트, AI 패널 | 시트 직접 수정 (ops 사용)  |
 | `src/session/`              | Y.Doc·저장·동기화·undo 생성과 해제, Context 제공             | 기능 로직                  |
