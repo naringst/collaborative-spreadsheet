@@ -25,25 +25,19 @@ export function createSheetUndo(doc: Y.Doc): SheetUndo {
   const revertedCbs = new Set<(addr: CellAddress | null) => void>();
 
   // undo/redo가 실제로 바꾼 셀을 실행 시점의 일회성 observer로 수집한다 —
-  // 스택 항목 내부 구조에 의존하지 않는 방법
+  // 스택 항목 내부 구조에 의존하지 않는 방법. 평탄 키("r:c:속성")의 앞 두 조각이 주소다.
   function runCollecting(run: () => void): CellAddress | null {
     let addr: CellAddress | null = null;
-    const listener = (events: Y.YEvent<Y.Map<unknown>>[]) => {
-      for (const event of events) {
-        if (addr) return;
-        if (event.target === cells) {
-          const key = event.changes.keys.keys().next().value;
-          if (key !== undefined) addr = parseCellKey(key);
-        } else {
-          addr = parseCellKey(String(event.path[0]));
-        }
-      }
+    const listener = (event: Y.YMapEvent<unknown>) => {
+      if (addr) return;
+      const key = event.changes.keys.keys().next().value;
+      if (key !== undefined) addr = parseCellKey(key);
     };
-    cells.observeDeep(listener);
+    cells.observe(listener);
     try {
       run();
     } finally {
-      cells.unobserveDeep(listener);
+      cells.unobserve(listener);
     }
     return addr;
   }

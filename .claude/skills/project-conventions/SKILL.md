@@ -45,7 +45,7 @@ ai ──→ sheet ←── collab/ui
 
 ## Yjs 규칙
 
-- 셀: `cells: Y.Map<"r:c", Y.Map>`. 값 `v`와 서식 키(`bold` 등)를 셀 Y.Map의 서로 다른 키로 둔다. 셀 전체를 일반 객체 하나로 `set`하지 않는다.
+- 셀: 평탄화된 단일 맵 `cells: Y.Map<"r:c:속성", 값>`. 값은 `"r:c:v"`, 서식은 `"r:c:bold"`처럼 셀 주소와 속성을 키 하나에 넣는다. 중첩 Y.Map을 쓰지 않는다 — 두 탭이 같은 빈 셀에 동시에 값·서식을 넣을 때 컨테이너가 LWW로 교체되어 한쪽이 소실되는 문제를 원천 차단한다 (이유: README "셀 저장 구조"). 셀 전체를 일반 객체 하나로 `set`하지 않는다.
 - 모든 로컬 편집은 `store`의 ops를 통해 `doc.transact(fn, LOCAL_ORIGIN)`으로 실행한다. UI에서 `Y.Map.set`을 직접 호출하지 않는다.
 - 원격에서 받은 update는 provider 인스턴스를 origin으로 적용하고(origin이 자신이면 재전송하지 않음), 다시 전송하지 않는다.
 - UndoManager는 `trackedOrigins: new Set([LOCAL_ORIGIN])`. 한 번에 되돌려야 하는 작업(AI 적용, 범위 지우기)은 transact 하나로 묶고 앞뒤로 `stopCapturing()`.

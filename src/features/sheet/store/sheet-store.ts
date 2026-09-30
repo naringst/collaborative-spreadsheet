@@ -5,13 +5,6 @@ import { cellsInRange, type CellRange } from "../model/range";
 /** UndoManager trackedOrigins 대상. 로컬 편집은 반드시 이 origin의 transact로 실행한다. */
 export const LOCAL_ORIGIN = Symbol("local");
 
-/**
- * 셀 컨테이너(Y.Map) 생성 전용 origin — undo에서 추적하지 않는다.
- * 컨테이너 생성이 undo 스택에 들어가면, 원격이 같은 셀을 덮어쓴 뒤 내 undo가
- * 컨테이너째 지워 원격 값까지 사라진다 (D7 위반). 값 키만 LOCAL로 추적한다.
- */
-const CONTAINER_ORIGIN = Symbol("cell-container");
-
 export interface SheetStore {
   setCellValue(addr: CellAddress, value: string): void;
   clearRange(range: CellRange): void;
@@ -20,24 +13,21 @@ export interface SheetStore {
   subscribe(listener: (info?: { isLocalChange: boolean }) => void): () => void;
 }
 
-type CellMap = Y.Map<string>;
+/**
+ * 셀은 평탄화된 단일 맵에 "r:c:속성" 키로 저장한다 (값: "r:c:v").
+ * 중첩 Y.Map(셀 컨테이너)을 쓰면 두 탭이 같은 빈 셀에 동시에 값·서식을 넣을 때
+ * 컨테이너가 LWW로 통째로 교체되어 한쪽이 소실된다 (C3·S4 위반).
+ * 평탄 키는 속성마다 독립 병합되고, 컨테이너 생성 undo 문제(D7)도 원천적으로 없다.
+ */
+function valueKey(addr: CellAddress): string {
+  return `${cellKey(addr)}:v`;
+}
 
 export function createSheetStore(doc: Y.Doc): SheetStore {
-  const cells = doc.getMap<CellMap>("cells");
-
-  function ensureCell(addr: CellAddress): CellMap {
-    const key = cellKey(addr);
-    let cell = cells.get(key);
-    if (!cell) {
-      const created = new Y.Map<string>();
-      doc.transact(() => cells.set(key, created), CONTAINER_ORIGIN);
-      cell = created;
-    }
-    return cell;
-  }
+  const cells = doc.getMap<string>("cells");
 
   function getValue(addr: CellAddress): string {
-    return cells.get(cellKey(addr))?.get("v") ?? "";
+    return cells.get(valueKey(addr)) ?? "";
   }
 
   function setValue(addr: CellAddress, value: string) {
@@ -45,16 +35,14 @@ export function createSheetStore(doc: Y.Doc): SheetStore {
     if (getValue(addr) === value) return;
     if (value === "") {
       // 빈 값은 키를 지워 "값 없음"과 "빈 문자열"이 갈라지지 않게 한다.
-      cells.get(cellKey(addr))?.delete("v");
+      cells.delete(valueKey(addr));
       return;
     }
-    ensureCell(addr).set("v", value);
+    cells.set(valueKey(addr), value);
   }
 
   return {
     setCellValue(addr, value) {
-      // 컨테이너 생성(CONTAINER_ORIGIN)이 LOCAL transact 안에 섞이지 않도록 먼저 보장한다
-      if (value !== "") ensureCell(addr);
       doc.transact(() => setValue(addr, value), LOCAL_ORIGIN);
     },
     clearRange(range) {
@@ -68,7 +56,7 @@ export function createSheetStore(doc: Y.Doc): SheetStore {
     getCellValue: getValue,
     subscribe(listener) {
       const handler = (
-        _events: Y.YEvent<Y.Map<string>>[],
+        _event: Y.YMapEvent<string>,
         transaction: Y.Transaction,
       ) => {
         listener({
@@ -77,8 +65,8 @@ export function createSheetStore(doc: Y.Doc): SheetStore {
             transaction.origin instanceof Y.UndoManager, // 내 undo/redo도 로컬 변경
         });
       };
-      cells.observeDeep(handler);
-      return () => cells.unobserveDeep(handler);
+      cells.observe(handler);
+      return () => cells.unobserve(handler);
     },
   };
 }
