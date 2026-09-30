@@ -11,6 +11,8 @@ export interface SheetUndo {
   subscribe(listener: () => void): () => void;
   /** undo/redo가 되돌린 셀 하나를 통지 — 선택 이동용 (S5 P1) */
   onReverted(cb: (addr: CellAddress | null) => void): () => void;
+  /** 다음 변경을 새 undo 단계로 시작한다 — AI 적용이 직전 입력과 합쳐지지 않게 (A5) */
+  stopCapturing(): void;
   destroy(): void;
 }
 
@@ -70,6 +72,9 @@ export function createSheetUndo(doc: Y.Doc): SheetUndo {
     onReverted(cb) {
       revertedCbs.add(cb);
       return () => revertedCbs.delete(cb);
+    },
+    stopCapturing() {
+      manager.stopCapturing();
     },
     destroy() {
       revertedCbs.clear();

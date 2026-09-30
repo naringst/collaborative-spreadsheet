@@ -15,6 +15,11 @@ import {
   type Presence,
 } from "@/features/collab";
 import {
+  createProposalStore,
+  type ProposalSource,
+  type ProposalStore,
+} from "@/features/ai";
+import {
   createSheetStore,
   createSheetUndo,
   type SheetStore,
@@ -28,9 +33,24 @@ export type SheetSessionValue =
       store: SheetStore;
       undo: SheetUndo;
       presence: Presence;
+      proposalStore: ProposalStore;
       /** IndexedDB를 쓸 수 없어 메모리로만 동작 중 (S6 P1) */
       storageWarning: boolean;
     };
+
+// 묶음 2에서 OpenRouter 스트리밍 클라이언트로 교체된다. 지금은 활성 셀에
+// 프롬프트를 넣어 검토·적용 경로를 확인하는 데모 소스다.
+const mockSource: ProposalSource = async ({ prompt, context }, onItem) => {
+  const match = /^([A-Z])(\d+)$/.exec(context.activeCell);
+  if (!match) return;
+  const [, colLetter, rowDigits] = match;
+  if (!colLetter || !rowDigits) return;
+  onItem({
+    col: colLetter.charCodeAt(0) - 65,
+    row: Number(rowDigits) - 1,
+    value: `[AI] ${prompt}`,
+  });
+};
 
 const SheetSessionContext = createContext<SheetSessionValue | null>(null);
 
@@ -54,6 +74,11 @@ export function SheetSessionProvider({
     // undo는 LOCAL_ORIGIN만 추적하므로 먼저 만들어도 이후 IndexedDB 로드·원격
     // 적용분이 스택에 들어가지 않는다 (C7)
     const undo = createSheetUndo(doc);
+    const proposalStore = createProposalStore({
+      store,
+      undo,
+      source: mockSource,
+    });
     const persistence = createPersistence(`sheet-${sheetId}`, doc);
 
     let disposed = false;
@@ -77,6 +102,7 @@ export function SheetSessionProvider({
         store,
         undo,
         presence,
+        proposalStore,
         storageWarning: !persisted,
       });
     });
@@ -85,6 +111,7 @@ export function SheetSessionProvider({
       disposed = true;
       setValue({ status: "loading" });
       dispose?.();
+      proposalStore.destroy();
       undo.destroy();
       void persistence.destroy();
       doc.destroy();

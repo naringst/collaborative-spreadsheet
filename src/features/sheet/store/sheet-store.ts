@@ -1,11 +1,19 @@
 import * as Y from "yjs";
 import {
+  CELL_FORMATS,
   cellKey,
   formatKey,
+  parseCellKey,
   type CellAddress,
   type CellFormatName,
 } from "../model/cell";
 import { cellsInRange, type CellRange } from "../model/range";
+
+export interface CellSnapshot {
+  addr: CellAddress;
+  value: string;
+  formats: CellFormatName[];
+}
 
 /** UndoManager trackedOrigins 대상. 로컬 편집은 반드시 이 origin의 transact로 실행한다. */
 export const LOCAL_ORIGIN = Symbol("local");
@@ -14,6 +22,10 @@ export interface SheetStore {
   setCellValue(addr: CellAddress, value: string): void;
   clearRange(range: CellRange): void;
   getCellValue(addr: CellAddress): string;
+  /** 여러 셀 값을 한 transact로 적용 — AI 적용을 undo 1회로 묶는다 (A5) */
+  applyCellValues(changes: { addr: CellAddress; value: string }[]): void;
+  /** 값이 있는 셀 전체를 주소·값·서식과 함께 반환 (AI 컨텍스트 D9·base 스냅샷) */
+  snapshotValues(): CellSnapshot[];
   /** 범위 전체 토글: 하나라도 꺼져 있으면 모두 켜고, 모두 켜져 있으면 모두 끈다 (S4) */
   toggleFormat(range: CellRange, format: CellFormatName): void;
   getCellFormat(addr: CellAddress, format: CellFormatName): boolean;
@@ -67,6 +79,26 @@ export function createSheetStore(doc: Y.Doc): SheetStore {
           setValue(addr, "");
         }
       }, LOCAL_ORIGIN);
+    },
+    applyCellValues(changes) {
+      doc.transact(() => {
+        for (const { addr, value } of changes) setValue(addr, value);
+      }, LOCAL_ORIGIN);
+    },
+    snapshotValues() {
+      const result: CellSnapshot[] = [];
+      for (const key of cells.keys()) {
+        // 값 있는 셀의 기준은 "r:c:v" 키의 존재다
+        if (!key.endsWith(":v")) continue;
+        const addr = parseCellKey(key);
+        if (!addr) continue;
+        result.push({
+          addr,
+          value: getValue(addr),
+          formats: CELL_FORMATS.filter((f) => getFormat(addr, f)),
+        });
+      }
+      return result;
     },
     toggleFormat(range, format) {
       const addrs = cellsInRange(range);

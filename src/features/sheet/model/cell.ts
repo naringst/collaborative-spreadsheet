@@ -19,19 +19,20 @@ export function formatKey(addr: CellAddress, format: CellFormatName): string {
 
 export function parseCellKey(key: string): CellAddress | null {
   const [row, col] = key.split(":").map(Number);
-  if (
-    row === undefined ||
-    col === undefined ||
-    Number.isNaN(row) ||
-    Number.isNaN(col)
-  ) {
-    return null;
-  }
+  if (row === undefined || col === undefined) return null;
+  // 그리드 밖·비정수 키는 손상된 것으로 보고 버린다 — 잘못된 라벨·주소 전파 방지
+  if (!Number.isInteger(row) || row < 0 || row >= GRID_ROWS) return null;
+  if (!Number.isInteger(col) || col < 0 || col >= GRID_COLS) return null;
   return { row, col };
 }
 
 export function columnLabel(col: number): string {
   return String.fromCharCode(65 + col);
+}
+
+/** 셀 주소를 A1 표기로 (AI 컨텍스트·범위 칩) */
+export function cellLabel(addr: CellAddress): string {
+  return `${columnLabel(addr.col)}${addr.row + 1}`;
 }
 
 function clamp(value: number, max: number): number {

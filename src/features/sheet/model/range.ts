@@ -1,4 +1,4 @@
-import type { CellAddress } from "./cell";
+import { cellLabel, type CellAddress } from "./cell";
 
 /** anchor는 범위의 시작(활성 셀), focus는 드래그·Shift 확장의 끝. 뒤집힌 방향도 허용된다. */
 export interface CellRange {
@@ -20,6 +20,19 @@ export function normalizeRange(range: CellRange): NormalizedRange {
     left: Math.min(range.anchor.col, range.focus.col),
     right: Math.max(range.anchor.col, range.focus.col),
   };
+}
+
+export function isSingleCell(range: CellRange): boolean {
+  const { top, bottom, left, right } = normalizeRange(range);
+  return top === bottom && left === right;
+}
+
+/** 범위를 "B2:D10" 표기로 (AI 컨텍스트·범위 칩). 단일 셀이면 "B2" */
+export function rangeLabel(range: CellRange): string {
+  const { top, left, bottom, right } = normalizeRange(range);
+  const start = cellLabel({ row: top, col: left });
+  if (top === bottom && left === right) return start;
+  return `${start}:${cellLabel({ row: bottom, col: right })}`;
 }
 
 export function rangeContains(range: CellRange, addr: CellAddress): boolean {
