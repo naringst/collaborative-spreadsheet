@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  memo,
   useEffect,
   useRef,
   type MouseEvent,
@@ -48,7 +49,8 @@ interface SheetGridProps {
   onPresenceChange?: (cursor: GridCursor) => void;
 }
 
-export function SheetGrid({
+// memo: 커서 미러 등 부모 리렌더에서 props가 같으면 2,700개 셀 트리를 다시 만들지 않는다
+export const SheetGrid = memo(function SheetGrid({
   store,
   undo,
   overlay,
@@ -205,4 +207,4 @@ export function SheetGrid({
       />
     </div>
   );
-}
+});

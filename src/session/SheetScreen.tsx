@@ -1,17 +1,34 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ParticipantList, RemoteSelectionOverlay } from "@/features/collab";
 import { SheetGrid, SheetToolbar, type GridCursor } from "@/features/sheet";
 import { SheetSessionProvider, useSheetSession } from "./SheetSession";
+
+const INITIAL_CURSOR: GridCursor = {
+  range: { anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } },
+  editing: null,
+};
 
 function SheetWorkspace() {
   const session = useSheetSession();
 
   // 훅 순서 유지를 위해 분기 위에서 선언 — loading이면 presence가 없어 no-op
   const presence = session.status === "ready" ? session.presence : null;
+  // 선택 원본은 Grid 내부(useSelection) 한 곳이고, 여기는 awareness 복사와 같은
+  // 단방향 미러 — 툴바가 서식 대상 범위·눌린 상태를 알기 위해 필요하다 (S4)
+  const [cursor, setCursor] = useState<GridCursor>(INITIAL_CURSOR);
   const onPresenceChange = useCallback(
-    (cursor: GridCursor) => presence?.setCursor(cursor),
+    (next: GridCursor) => {
+      setCursor(next);
+      presence?.setCursor(next);
+    },
+    [presence],
+  );
+  // 커서 미러 setState가 매 선택 변경마다 이 컴포넌트를 리렌더하므로,
+  // overlay 엘리먼트를 고정해 memo된 SheetGrid가 두 번 렌더되지 않게 한다
+  const overlay = useMemo(
+    () => (presence ? <RemoteSelectionOverlay presence={presence} /> : null),
     [presence],
   );
 
@@ -33,16 +50,14 @@ function SheetWorkspace() {
         </div>
       )}
       <div className="flex items-center justify-between border-b border-gray-200">
-        <SheetToolbar undo={undo} />
+        <SheetToolbar store={store} undo={undo} cursor={cursor} />
         {presence && <ParticipantList presence={presence} />}
       </div>
       <div className="min-h-0 flex-1">
         <SheetGrid
           store={store}
           undo={undo}
-          overlay={
-            presence ? <RemoteSelectionOverlay presence={presence} /> : null
-          }
+          overlay={overlay}
           onPresenceChange={onPresenceChange}
         />
       </div>

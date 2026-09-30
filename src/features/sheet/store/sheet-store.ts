@@ -1,5 +1,10 @@
 import * as Y from "yjs";
-import { cellKey, type CellAddress } from "../model/cell";
+import {
+  cellKey,
+  formatKey,
+  type CellAddress,
+  type CellFormatName,
+} from "../model/cell";
 import { cellsInRange, type CellRange } from "../model/range";
 
 /** UndoManager trackedOrigins 대상. 로컬 편집은 반드시 이 origin의 transact로 실행한다. */
@@ -9,6 +14,9 @@ export interface SheetStore {
   setCellValue(addr: CellAddress, value: string): void;
   clearRange(range: CellRange): void;
   getCellValue(addr: CellAddress): string;
+  /** 범위 전체 토글: 하나라도 꺼져 있으면 모두 켜고, 모두 켜져 있으면 모두 끈다 (S4) */
+  toggleFormat(range: CellRange, format: CellFormatName): void;
+  getCellFormat(addr: CellAddress, format: CellFormatName): boolean;
   /** isLocalChange: 이 탭의 편집·undo에서 비롯된 변경 (D6 원격 감지 구분용) */
   subscribe(listener: (info?: { isLocalChange: boolean }) => void): () => void;
 }
@@ -24,10 +32,17 @@ function valueKey(addr: CellAddress): string {
 }
 
 export function createSheetStore(doc: Y.Doc): SheetStore {
-  const cells = doc.getMap<string>("cells");
+  // 값("r:c:v")은 string, 서식("r:c:bold" 등)은 true. 꺼진 서식은 키가 없다 —
+  // 빈 값 = 키 삭제 규약과 대칭이라 false 잔여 키가 남지 않는다.
+  const cells = doc.getMap<string | boolean>("cells");
 
   function getValue(addr: CellAddress): string {
-    return cells.get(valueKey(addr)) ?? "";
+    const v = cells.get(valueKey(addr));
+    return typeof v === "string" ? v : "";
+  }
+
+  function getFormat(addr: CellAddress, format: CellFormatName): boolean {
+    return cells.get(formatKey(addr, format)) === true;
   }
 
   function setValue(addr: CellAddress, value: string) {
@@ -53,10 +68,23 @@ export function createSheetStore(doc: Y.Doc): SheetStore {
         }
       }, LOCAL_ORIGIN);
     },
+    toggleFormat(range, format) {
+      const addrs = cellsInRange(range);
+      const allOn = addrs.every((addr) => getFormat(addr, format));
+      // 이미 맞는 상태의 셀은 건드리지 않는다 — undo가 정확히 원래 상태로 복구된다
+      doc.transact(() => {
+        for (const addr of addrs) {
+          const key = formatKey(addr, format);
+          if (allOn) cells.delete(key);
+          else if (!getFormat(addr, format)) cells.set(key, true);
+        }
+      }, LOCAL_ORIGIN);
+    },
     getCellValue: getValue,
+    getCellFormat: getFormat,
     subscribe(listener) {
       const handler = (
-        _event: Y.YMapEvent<string>,
+        _event: Y.YMapEvent<string | boolean>,
         transaction: Y.Transaction,
       ) => {
         listener({

@@ -10,6 +10,13 @@ export function cellKey(addr: CellAddress): string {
   return `${addr.row}:${addr.col}`;
 }
 
+export const CELL_FORMATS = ["bold", "italic", "underline", "strike"] as const;
+export type CellFormatName = (typeof CELL_FORMATS)[number];
+
+export function formatKey(addr: CellAddress, format: CellFormatName): string {
+  return `${cellKey(addr)}:${format}`;
+}
+
 export function parseCellKey(key: string): CellAddress | null {
   const [row, col] = key.split(":").map(Number);
   if (

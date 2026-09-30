@@ -1,8 +1,17 @@
 import { useCallback, type KeyboardEvent } from "react";
+import type { CellFormatName } from "../model/cell";
 import type { SheetStore } from "../store/sheet-store";
 import type { SheetUndo } from "../store/undo";
 import type { EditingApi } from "./useEditing";
 import type { SelectionApi } from "./useSelection";
+
+// e.code(물리 키) 기준 — 한글 자판에서는 e.key가 'ㅠ' 등으로 보고되어 매칭이 깨진다.
+// 취소선(⌘⇧X)은 Shift 조건이 있어 매핑 표가 아니라 호출부에서 처리한다.
+const FORMAT_SHORTCUTS: Record<string, CellFormatName | undefined> = {
+  KeyB: "bold",
+  KeyI: "italic",
+  KeyU: "underline",
+};
 
 const ARROWS: Record<string, readonly [number, number]> = {
   ArrowUp: [-1, 0],
@@ -23,6 +32,19 @@ export function useGridKeyboard(
 
   return useCallback(
     (e: KeyboardEvent) => {
+      // 서식 단축키는 편집 모드·IME 조합 중에도 동작한다 (S4 P1) — ⌘/Ctrl 조합은
+      // 조합 입력이 아니고 input 텍스트를 건드리지 않으므로 isComposing 가드보다 앞.
+      // preventDefault로 브라우저 기본 동작(Ctrl+B/U 등)을 차단한다.
+      if (e.metaKey || e.ctrlKey) {
+        const format =
+          e.code === "KeyX" && e.shiftKey ? "strike" : FORMAT_SHORTCUTS[e.code];
+        if (format) {
+          e.preventDefault();
+          store.toggleFormat(range, format);
+          return;
+        }
+      }
+
       // IME 조합 중에는 모든 특수 키를 무시한다 — Enter는 조합만 끝내고 확정하지 않음 (S2)
       if (e.nativeEvent.isComposing || e.keyCode === 229) return;
 
@@ -58,9 +80,10 @@ export function useGridKeyboard(
       // 비편집 ⌘Z/⌘⇧Z/Ctrl+Y = 문서 undo/redo (S5). 편집 모드 ⌘Z는 위 editing
       // 분기에서 안 걸려 input 네이티브 텍스트 undo로 동작한다.
       // preventDefault는 undo 미연결이어도 유지 — 숨은 input의 네이티브 undo 차단.
-      if ((e.metaKey || e.ctrlKey) && ["z", "Z", "y"].includes(e.key)) {
+      // e.code 매칭: 한글 자판에서 e.key는 'ㅋ' 등으로 보고된다.
+      if ((e.metaKey || e.ctrlKey) && ["KeyZ", "KeyY"].includes(e.code)) {
         e.preventDefault();
-        const isRedo = e.key === "y" || e.shiftKey;
+        const isRedo = e.code === "KeyY" || e.shiftKey;
         if (isRedo) undoApi?.redo();
         else undoApi?.undo();
         return;
