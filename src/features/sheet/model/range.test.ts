@@ -73,7 +73,9 @@ describe("S1 cellsInRange", () => {
       anchor: { row: 2, col: 3 },
       focus: { row: 1, col: 1 },
     });
-    expect(new Set(reversed.map(cellKey))).toEqual(new Set(forward.map(cellKey)));
+    expect(new Set(reversed.map(cellKey))).toEqual(
+      new Set(forward.map(cellKey)),
+    );
   });
 
   it("단일 셀 범위는 셀 1개", () => {

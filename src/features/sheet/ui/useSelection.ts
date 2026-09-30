@@ -33,7 +33,14 @@ export function useSelection() {
     }));
   }, []);
 
-  return { range, active: range.anchor, selectCell, extendTo, moveActive, extendBy };
+  return {
+    range,
+    active: range.anchor,
+    selectCell,
+    extendTo,
+    moveActive,
+    extendBy,
+  };
 }
 
 export type SelectionApi = ReturnType<typeof useSelection>;

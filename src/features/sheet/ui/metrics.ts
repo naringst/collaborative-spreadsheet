@@ -5,7 +5,12 @@ export const HEADER_W = 48;
 export const HEADER_H = 28;
 
 /** 셀 좌표(정규화된 range 경계)를 그리드 콘텐츠 기준 픽셀 사각형으로 변환한다. */
-export function cellRect(top: number, left: number, bottom = top, right = left) {
+export function cellRect(
+  top: number,
+  left: number,
+  bottom = top,
+  right = left,
+) {
   return {
     left: HEADER_W + left * CELL_W,
     top: HEADER_H + top * CELL_H,

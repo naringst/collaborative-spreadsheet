@@ -1,25 +1,26 @@
 "use client";
 
 import {
-  useCallback,
   useEffect,
   useRef,
   type MouseEvent,
   type PointerEvent,
+  type ReactNode,
 } from "react";
 import {
   GRID_COLS,
   GRID_ROWS,
   columnLabel,
   isSameCell,
-  moveWithinGrid,
   type CellAddress,
 } from "../model/cell";
-import { normalizeRange, rangeContains } from "../model/range";
+import { normalizeRange, rangeContains, type CellRange } from "../model/range";
 import type { SheetStore } from "../store/sheet-store";
+import type { SheetUndo } from "../store/undo";
 import { Cell } from "./Cell";
 import { CellEditor } from "./CellEditor";
-import { CELL_H, CELL_W, HEADER_H, HEADER_W, cellRect } from "./metrics";
+import { CELL_H, CELL_W, HEADER_W, cellRect } from "./metrics";
+import { useDragSelection } from "./useDragSelection";
 import { useEditing } from "./useEditing";
 import { useGridKeyboard } from "./useGridKeyboard";
 import { useSelection } from "./useSelection";
@@ -27,29 +28,56 @@ import { useSelection } from "./useSelection";
 const ROWS = Array.from({ length: GRID_ROWS }, (_, i) => i);
 const COLS = Array.from({ length: GRID_COLS }, (_, i) => i);
 
-/** 드래그 자동 스크롤: 가장자리 이 거리 안이면 프레임당 이 픽셀만큼 스크롤 */
-const EDGE = 24;
-const SCROLL_STEP = 16;
-
 function addrFromEventTarget(target: EventTarget): CellAddress | null {
   const el = (target as HTMLElement).closest?.("[data-row]");
   if (!(el instanceof HTMLElement)) return null;
   return { row: Number(el.dataset.row), col: Number(el.dataset.col) };
 }
 
-export function SheetGrid({ store }: { store: SheetStore }) {
+export interface GridCursor {
+  range: CellRange;
+  editing: CellAddress | null;
+}
+
+interface SheetGridProps {
+  store: SheetStore;
+  undo?: SheetUndo;
+  /** 다른 feature(collab 등)가 그리드 위에 끼우는 레이어 — Grid는 이들을 모른다 */
+  overlay?: ReactNode;
+  /** 내 선택·편집 위치가 바뀔 때 호출 — awareness 복사용 (원본은 React state) */
+  onPresenceChange?: (cursor: GridCursor) => void;
+}
+
+export function SheetGrid({
+  store,
+  undo,
+  overlay,
+  onPresenceChange,
+}: SheetGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const composingRef = useRef(false);
-  const dragPointer = useRef<{ x: number; y: number } | null>(null);
-  const rafId = useRef<number | null>(null);
 
   const selection = useSelection();
   const editingApi = useEditing(store, inputRef);
-  const onKeyDown = useGridKeyboard(store, selection, editingApi);
+  const onKeyDown = useGridKeyboard(store, selection, editingApi, undo);
 
   const { range, active, selectCell, extendTo } = selection;
-  const { editing, start, commit } = editingApi;
+  const { editing, remoteConflict, start, commit } = editingApi;
+  const drag = useDragSelection(containerRef, extendTo);
+
+  // 내 선택·편집 위치를 awareness로 복사한다 (C5). 입력 중 텍스트는 보내지 않는다 (C2)
+  useEffect(() => {
+    onPresenceChange?.({ range, editing: editing?.addr ?? null });
+  }, [onPresenceChange, range, editing]);
+
+  // undo/redo가 되돌린 셀로 선택을 옮긴다 (S5 P1)
+  useEffect(() => {
+    if (!undo) return;
+    return undo.onReverted((addr) => {
+      if (addr) selectCell(addr);
+    });
+  }, [undo, selectCell]);
 
   // 키보드 입력(문자·조합 포함)이 항상 CellEditor의 input으로 들어가게 한다
   useEffect(() => {
@@ -63,42 +91,17 @@ export function SheetGrid({ store }: { store: SheetStore }) {
       ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [active]);
 
-  // 포인터 좌표 → 셀 주소. 헤더·콘텐츠 밖 좌표는 가장 가까운 셀로 클램프되어
-  // 창 밖 드래그에서도 마지막 행·열까지 확장된다
-  const addrFromPointer = useCallback((x: number, y: number): CellAddress | null => {
-    const container = containerRef.current;
-    if (!container) return null;
-    const rect = container.getBoundingClientRect();
-    return moveWithinGrid(
-      {
-        row: Math.floor((y - rect.top + container.scrollTop - HEADER_H) / CELL_H),
-        col: Math.floor((x - rect.left + container.scrollLeft - HEADER_W) / CELL_W),
-      },
-      0,
-      0,
-    );
-  }, []);
-
-  const stopDrag = useCallback(() => {
-    dragPointer.current = null;
-    if (rafId.current !== null) {
-      cancelAnimationFrame(rafId.current);
-      rafId.current = null;
-    }
-  }, []);
-
-  // 드래그 중 언마운트되면 rAF 루프를 정리한다
-  useEffect(() => stopDrag, [stopDrag]);
-
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
+    // 셀 밖(스크롤바 등)은 건드리지 않는다 — pointerdown preventDefault는
+    // 네이티브 스크롤바 드래그까지 막는다
+    const addr = addrFromEventTarget(e.target);
+    if (!addr) return;
+
     // input의 포커스를 뺏지 않는다 — 포커스가 떠나면 IME 조합·키 입력이 끊긴다.
     // 다른 요소(툴바 등)에 포커스가 가 있던 경우도 셀 클릭으로 되찾는다.
     e.preventDefault();
     inputRef.current?.focus({ preventScroll: true });
-
-    const addr = addrFromEventTarget(e.target);
-    if (!addr) return;
 
     if (editing) {
       if (isSameCell(editing.addr, addr)) return; // 편집 중 자신 클릭은 유지
@@ -114,43 +117,7 @@ export function SheetGrid({ store }: { store: SheetStore }) {
     if (e.shiftKey) extendTo(addr);
     else selectCell(addr);
 
-    // 포인터 캡처: 창 밖으로 나가도 move·up이 계속 들어와 드래그가 고아가 되지 않는다
-    containerRef.current?.setPointerCapture(e.pointerId);
-    dragPointer.current = { x: e.clientX, y: e.clientY };
-
-    // 가장자리 자동 스크롤 (S1 P1). rafId 가드로 루프는 하나만 돈다
-    const step = () => {
-      rafId.current = null;
-      const pointer = dragPointer.current;
-      const container = containerRef.current;
-      if (!pointer || !container) return;
-      const rect = container.getBoundingClientRect();
-      let dx = 0;
-      let dy = 0;
-      if (pointer.x < rect.left + HEADER_W + EDGE) dx = -SCROLL_STEP;
-      else if (pointer.x > rect.right - EDGE) dx = SCROLL_STEP;
-      if (pointer.y < rect.top + HEADER_H + EDGE) dy = -SCROLL_STEP;
-      else if (pointer.y > rect.bottom - EDGE) dy = SCROLL_STEP;
-      if (dx || dy) {
-        container.scrollBy(dx, dy);
-        const next = addrFromPointer(pointer.x, pointer.y);
-        if (next) extendTo(next);
-      }
-      rafId.current = requestAnimationFrame(step);
-    };
-    if (rafId.current === null) rafId.current = requestAnimationFrame(step);
-  };
-
-  const onPointerMove = (e: PointerEvent) => {
-    if (!dragPointer.current) return;
-    if (e.buttons === 0) {
-      // 창 밖 등에서 버튼이 이미 놓인 경우의 안전망
-      stopDrag();
-      return;
-    }
-    dragPointer.current = { x: e.clientX, y: e.clientY };
-    const addr = addrFromPointer(e.clientX, e.clientY);
-    if (addr) extendTo(addr);
+    drag.begin(e);
   };
 
   const onDoubleClick = (e: MouseEvent) => {
@@ -164,12 +131,14 @@ export function SheetGrid({ store }: { store: SheetStore }) {
   return (
     <div
       ref={containerRef}
-      className="relative h-full overflow-auto"
+      // 시트는 라이트 팔레트 고정(셀 bg-white) — OS 다크 모드의 밝은 전역 글자색이
+      // 흰 셀 위에 얹히지 않도록 검정으로 못박는다
+      className="relative h-full overflow-auto text-gray-900"
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={stopDrag}
-      onPointerCancel={stopDrag}
+      onPointerMove={drag.move}
+      onPointerUp={drag.stop}
+      onPointerCancel={drag.stop}
       onDoubleClick={onDoubleClick}
     >
       <div
@@ -184,7 +153,9 @@ export function SheetGrid({ store }: { store: SheetStore }) {
           <div
             key={col}
             className={`sticky top-0 z-20 border-r border-b border-gray-300 text-center text-xs leading-7 ${
-              col >= norm.left && col <= norm.right ? "bg-blue-100" : "bg-gray-50"
+              col >= norm.left && col <= norm.right
+                ? "bg-blue-100"
+                : "bg-gray-50"
             }`}
           >
             {columnLabel(col)}
@@ -194,7 +165,9 @@ export function SheetGrid({ store }: { store: SheetStore }) {
           <div key={row} className="contents">
             <div
               className={`sticky left-0 z-10 border-r border-b border-gray-300 text-center text-xs leading-7 ${
-                row >= norm.top && row <= norm.bottom ? "bg-blue-100" : "bg-gray-50"
+                row >= norm.top && row <= norm.bottom
+                  ? "bg-blue-100"
+                  : "bg-gray-50"
               }`}
             >
               {row + 1}
@@ -220,11 +193,14 @@ export function SheetGrid({ store }: { store: SheetStore }) {
         />
       )}
 
+      {overlay}
+
       <CellEditor
         inputRef={inputRef}
         composingRef={composingRef}
         active={active}
         editing={editing}
+        remoteConflict={remoteConflict}
         start={start}
       />
     </div>

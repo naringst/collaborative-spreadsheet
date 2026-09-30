@@ -25,7 +25,10 @@ export function normalizeRange(range: CellRange): NormalizedRange {
 export function rangeContains(range: CellRange, addr: CellAddress): boolean {
   const { top, left, bottom, right } = normalizeRange(range);
   return (
-    addr.row >= top && addr.row <= bottom && addr.col >= left && addr.col <= right
+    addr.row >= top &&
+    addr.row <= bottom &&
+    addr.col >= left &&
+    addr.col <= right
   );
 }
 

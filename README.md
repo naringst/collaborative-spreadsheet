@@ -86,6 +86,35 @@ SharedWorker의 장점인 "원본이 한 곳"과 "쓰는 곳이 한 곳"은 CRDT
 
 Yjs에는 BroadcastChannel 전용 provider가 없어 직접 작성합니다(`features/collab/broadcast-provider.ts`). `y-webrtc`도 내부에서 BroadcastChannel을 쓰지만, WebRTC 의존성이 딸려 오고 "브라우저 API만으로"라는 조건에서 동작을 명확히 설명하기 어려워 사용하지 않았습니다.
 
+### 참여자 표시: y-protocols/awareness
+
+참여자 이름·색·선택 위치는 저장되지 않는 휘발 상태라 Y.Doc이 아닌 별도 채널이 필요합니다.
+
+- **선택**: `y-protocols/awareness`. clock 기반 상태 병합, 제거 프로토콜, 타임아웃 정리가 이미 구현돼 있고 yjs와 같은 생태계라 추가 전송 의존성이 없다.
+- **검토한 대안**: BroadcastChannel 위에 자작 presence 맵 — 순서·타임아웃·제거 전파를 다시 만들게 되어 Q2(재구현 금지) 위반.
+- 커서 페이로드는 collab 코어에서 `unknown`으로 불투명하게 다룬다 — 코어는 셀 개념을 모른다는 경계 유지. 구체 타입은 sheet 공개 API를 쓸 수 있는 `collab/ui`에 있다.
+
+### 탭 종료 감지: Web Locks (heartbeat 대신)
+
+비정상 종료(크래시)된 참여자를 수 초 안에 지우되, 절전된 백그라운드 탭을 잘못 지우면 안 됩니다(C6).
+
+- **선택**: 각 탭이 자기 clientID 이름의 Web Lock을 보유하고, 피어는 그 잠금을 요청해 둔다. 획득되는 순간이 곧 소유 탭의 사망이다 — 브라우저가 탭 종료 시 즉시 해제하고, 타이머 스로틀링과 무관하다.
+- **검토한 대안**: heartbeat — 백그라운드 탭은 타이머가 최대 1분으로 스로틀링되어 살아 있는 탭이 오탐 제거된다.
+- awareness의 30초 타임아웃도 같은 이유로 절전 탭을 오탐하므로, Web Locks가 있으면 원격 상태의 lastUpdated를 주기 갱신해 타임아웃을 무력화한다. Web Locks 미지원 환경에서만 타임아웃이 폴백으로 동작한다.
+
+### 원격 update의 origin은 provider 인스턴스
+
+- **선택**: 수신 update를 `Y.applyUpdate(doc, update, provider)`로 적용하고, `doc.on("update")`에서 origin이 자신이면 재전송하지 않는다. Yjs 표준 관례로, collab이 sheet의 심볼(`LOCAL_ORIGIN`)을 의존하지 않아도 에코 차단과 undo 제외(trackedOrigins)가 모두 성립한다.
+- **검토한 대안**: `REMOTE_ORIGIN` 상수 — 의도는 같지만 collab에 별도 심볼이 생기고 provider가 여럿일 때 구분이 안 된다.
+
+### 셀 컨테이너 생성은 undo 추적 밖에서 (D7)
+
+내가 빈 셀에 처음 값을 넣은 편집을 undo하면, 셀 컨테이너(Y.Map) 삽입까지 되돌아가 **그 사이 다른 참여자가 덮어쓴 값도 함께 사라지는** 문제가 있었습니다(D7 위반, 단위 테스트로 발견).
+
+- **선택**: 컨테이너 생성은 별도 origin(`CONTAINER_ORIGIN`)의 transact로 분리해 undo에서 제외하고, 값 키(`v`) 변경만 `LOCAL_ORIGIN`으로 추적한다. undo는 값만 되돌리고 컨테이너는 남는다(빈 Y.Map은 무해).
+- **트레이드오프**: 첫 입력이 transact 2개가 되지만 둘 다 같은 브로드캐스트 경로라 동작 차이 없음.
+- **남은 한계**: 두 탭이 같은 빈 셀의 컨테이너를 동시에 생성하면 Y.Map 자체가 LWW로 교체된다. 값만 있는 지금은 결과가 같지만, 서식(S4)이 들어가면 값·서식이 서로 다른 컨테이너에 실려 한쪽이 소실될 수 있다 — S4 설계에서 셀 평탄화(`"r:c:v"`, `"r:c:bold"` 최상위 키) 여부를 결정한다.
+
 ### 셀 데이터는 1단계(단독 편집)부터 Y.Doc에
 
 공동 편집(2단계) 전에는 React 상태로도 충분하지만, 그렇게 시작하면 2단계에서 저장 구조·편집 연산·구독을 전부 다시 쓰고 그 사이 "상태는 한 곳에만" 규칙을 위반한 상태를 거칩니다.

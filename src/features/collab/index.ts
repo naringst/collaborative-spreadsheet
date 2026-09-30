@@ -9,4 +9,14 @@
  * 의존 규칙: 코어는 Y.Doc만 다루며 sheet·ai·session을 import하지 않는다.
  * (ui/는 그리드 위에 그리기 위해 sheet의 공개 API만 사용할 수 있다.)
  */
-export {};
+export {
+  createBroadcastProvider,
+  type BroadcastProvider,
+} from "./broadcast-provider";
+export { createPersistence, type Persistence } from "./persistence";
+export { createPresence, type Participant, type Presence } from "./presence";
+export { ParticipantList } from "./ui/ParticipantList";
+export {
+  RemoteSelectionOverlay,
+  type SheetCursor,
+} from "./ui/RemoteSelectionOverlay";

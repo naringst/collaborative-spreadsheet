@@ -63,7 +63,10 @@ describe("S2 clearRange — 범위 지우기", () => {
   it("빈 셀만 있는 범위를 지워도 오류가 없다", () => {
     const store = createSheetStore(new Y.Doc());
     expect(() =>
-      store.clearRange({ anchor: { row: 3, col: 3 }, focus: { row: 4, col: 4 } }),
+      store.clearRange({
+        anchor: { row: 3, col: 3 },
+        focus: { row: 4, col: 4 },
+      }),
     ).not.toThrow();
     expect(store.getCellValue({ row: 3, col: 3 })).toBe("");
   });
@@ -103,8 +106,9 @@ describe("S5 LOCAL_ORIGIN transact", () => {
       origins.push(tr.origin);
     });
     store.setCellValue(A1, "v");
+    // 값 변경이 LOCAL_ORIGIN transact로 실행되는지만 고정한다.
+    // 셀 컨테이너 생성은 별도 origin으로 분리되어 undo에서 제외된다 (D7).
     expect(origins).toContain(LOCAL_ORIGIN);
-    expect(origins.every((o) => o === LOCAL_ORIGIN)).toBe(true);
   });
 
   it("clearRange도 LOCAL_ORIGIN이며 transact 1회다", () => {

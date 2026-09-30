@@ -32,26 +32,41 @@ describe("S7 셀 키·라벨", () => {
     expect(columnLabel(1)).toBe("B");
     expect(columnLabel(25)).toBe("Z");
   });
-
 });
 
 describe("S3 moveWithinGrid — 시트 가장자리에서 멈춤", () => {
   it("일반 이동", () => {
-    expect(moveWithinGrid({ row: 5, col: 5 }, 1, 0)).toEqual({ row: 6, col: 5 });
-    expect(moveWithinGrid({ row: 5, col: 5 }, 0, -1)).toEqual({ row: 5, col: 4 });
+    expect(moveWithinGrid({ row: 5, col: 5 }, 1, 0)).toEqual({
+      row: 6,
+      col: 5,
+    });
+    expect(moveWithinGrid({ row: 5, col: 5 }, 0, -1)).toEqual({
+      row: 5,
+      col: 4,
+    });
   });
 
   it("왼쪽 위 모서리에서 음수 이동은 멈춘다", () => {
-    expect(moveWithinGrid({ row: 0, col: 0 }, -1, 0)).toEqual({ row: 0, col: 0 });
-    expect(moveWithinGrid({ row: 0, col: 0 }, 0, -1)).toEqual({ row: 0, col: 0 });
+    expect(moveWithinGrid({ row: 0, col: 0 }, -1, 0)).toEqual({
+      row: 0,
+      col: 0,
+    });
+    expect(moveWithinGrid({ row: 0, col: 0 }, 0, -1)).toEqual({
+      row: 0,
+      col: 0,
+    });
   });
 
   it("오른쪽 아래 모서리에서 양수 이동은 멈춘다", () => {
-    expect(moveWithinGrid({ row: GRID_ROWS - 1, col: GRID_COLS - 1 }, 1, 0)).toEqual({
+    expect(
+      moveWithinGrid({ row: GRID_ROWS - 1, col: GRID_COLS - 1 }, 1, 0),
+    ).toEqual({
       row: GRID_ROWS - 1,
       col: GRID_COLS - 1,
     });
-    expect(moveWithinGrid({ row: GRID_ROWS - 1, col: GRID_COLS - 1 }, 0, 1)).toEqual({
+    expect(
+      moveWithinGrid({ row: GRID_ROWS - 1, col: GRID_COLS - 1 }, 0, 1),
+    ).toEqual({
       row: GRID_ROWS - 1,
       col: GRID_COLS - 1,
     });
@@ -62,11 +77,17 @@ describe("S3 moveWithinGrid — 시트 가장자리에서 멈춤", () => {
       row: GRID_ROWS - 1,
       col: GRID_COLS - 1,
     });
-    expect(moveWithinGrid({ row: 50, col: 10 }, -1000, -1000)).toEqual({ row: 0, col: 0 });
+    expect(moveWithinGrid({ row: 50, col: 10 }, -1000, -1000)).toEqual({
+      row: 0,
+      col: 0,
+    });
   });
 
   it("이동 0은 같은 좌표를 반환한다", () => {
-    expect(moveWithinGrid({ row: 3, col: 4 }, 0, 0)).toEqual({ row: 3, col: 4 });
+    expect(moveWithinGrid({ row: 3, col: 4 }, 0, 0)).toEqual({
+      row: 3,
+      col: 4,
+    });
   });
 });
 

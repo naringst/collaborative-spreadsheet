@@ -12,6 +12,8 @@ interface CellEditorProps {
   composingRef: RefObject<boolean>;
   active: CellAddress;
   editing: EditingState | null;
+  /** D6: 편집 중 다른 참여자가 이 셀을 먼저 확정함 */
+  remoteConflict: boolean;
   start: (addr: CellAddress, mode: EditMode) => void;
 }
 
@@ -25,6 +27,7 @@ export function CellEditor({
   composingRef,
   active,
   editing,
+  remoteConflict,
   start,
 }: CellEditorProps) {
   const addr = editing?.addr ?? active;
@@ -44,29 +47,39 @@ export function CellEditor({
   });
 
   return (
-    <input
-      ref={inputRef}
-      onBeforeInput={() => {
-        if (!editing) start(active, "replace");
-      }}
-      onCompositionStart={() => {
-        composingRef.current = true;
-        if (!editing) start(active, "replace");
-      }}
-      onCompositionEnd={() => {
-        composingRef.current = false;
-      }}
-      onInput={fitWidthToContent}
-      onPointerDown={(e) => e.stopPropagation()}
-      className={`absolute z-[6] field-sizing-content border-2 border-blue-600 bg-white px-1 text-sm outline-none ${
-        editing ? "" : "pointer-events-none opacity-0"
-      }`}
-      style={{
-        left: rect.left,
-        top: rect.top,
-        height: rect.height,
-        minWidth: rect.width,
-      }}
-    />
+    <>
+      {editing && remoteConflict && (
+        <div
+          className="pointer-events-none absolute z-[7] rounded bg-amber-100 px-1.5 py-0.5 text-xs whitespace-nowrap text-amber-900 shadow"
+          style={{ left: rect.left, top: rect.top - 24 }}
+        >
+          다른 참여자가 이 셀을 변경했습니다
+        </div>
+      )}
+      <input
+        ref={inputRef}
+        onBeforeInput={() => {
+          if (!editing) start(active, "replace");
+        }}
+        onCompositionStart={() => {
+          composingRef.current = true;
+          if (!editing) start(active, "replace");
+        }}
+        onCompositionEnd={() => {
+          composingRef.current = false;
+        }}
+        onInput={fitWidthToContent}
+        onPointerDown={(e) => e.stopPropagation()}
+        className={`absolute z-[6] field-sizing-content border-2 border-blue-600 bg-white px-1 text-sm outline-none ${
+          editing ? "" : "pointer-events-none opacity-0"
+        }`}
+        style={{
+          left: rect.left,
+          top: rect.top,
+          height: rect.height,
+          minWidth: rect.width,
+        }}
+      />
+    </>
   );
 }

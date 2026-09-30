@@ -1,5 +1,6 @@
 import { useCallback, type KeyboardEvent } from "react";
 import type { SheetStore } from "../store/sheet-store";
+import type { SheetUndo } from "../store/undo";
 import type { EditingApi } from "./useEditing";
 import type { SelectionApi } from "./useSelection";
 
@@ -15,6 +16,7 @@ export function useGridKeyboard(
   store: SheetStore,
   selection: SelectionApi,
   editingApi: EditingApi,
+  undoApi?: SheetUndo,
 ) {
   const { range, active, moveActive, extendBy } = selection;
   const { editing, start, commit, cancel } = editingApi;
@@ -53,10 +55,14 @@ export function useGridKeyboard(
         return;
       }
 
-      // 비편집 ⌘Z·⌘Y는 문서 undo(S5) 자리다. 지금은 숨은 input의 네이티브 undo가
-      // 확정된 텍스트를 되살리는 것을 막기 위해 기본 동작만 차단한다.
+      // 비편집 ⌘Z/⌘⇧Z/Ctrl+Y = 문서 undo/redo (S5). 편집 모드 ⌘Z는 위 editing
+      // 분기에서 안 걸려 input 네이티브 텍스트 undo로 동작한다.
+      // preventDefault는 undo 미연결이어도 유지 — 숨은 input의 네이티브 undo 차단.
       if ((e.metaKey || e.ctrlKey) && ["z", "Z", "y"].includes(e.key)) {
         e.preventDefault();
+        const isRedo = e.key === "y" || e.shiftKey;
+        if (isRedo) undoApi?.redo();
+        else undoApi?.undo();
         return;
       }
 
@@ -77,6 +83,17 @@ export function useGridKeyboard(
           break;
       }
     },
-    [store, range, active, moveActive, extendBy, editing, start, commit, cancel],
+    [
+      store,
+      range,
+      active,
+      moveActive,
+      extendBy,
+      editing,
+      start,
+      commit,
+      cancel,
+      undoApi,
+    ],
   );
 }

@@ -10,6 +10,19 @@ export function cellKey(addr: CellAddress): string {
   return `${addr.row}:${addr.col}`;
 }
 
+export function parseCellKey(key: string): CellAddress | null {
+  const [row, col] = key.split(":").map(Number);
+  if (
+    row === undefined ||
+    col === undefined ||
+    Number.isNaN(row) ||
+    Number.isNaN(col)
+  ) {
+    return null;
+  }
+  return { row, col };
+}
+
 export function columnLabel(col: number): string {
   return String.fromCharCode(65 + col);
 }

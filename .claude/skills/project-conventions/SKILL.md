@@ -47,7 +47,7 @@ ai ──→ sheet ←── collab/ui
 
 - 셀: `cells: Y.Map<"r:c", Y.Map>`. 값 `v`와 서식 키(`bold` 등)를 셀 Y.Map의 서로 다른 키로 둔다. 셀 전체를 일반 객체 하나로 `set`하지 않는다.
 - 모든 로컬 편집은 `store`의 ops를 통해 `doc.transact(fn, LOCAL_ORIGIN)`으로 실행한다. UI에서 `Y.Map.set`을 직접 호출하지 않는다.
-- 원격에서 받은 update는 `REMOTE_ORIGIN`으로 적용하고 다시 전송하지 않는다.
+- 원격에서 받은 update는 provider 인스턴스를 origin으로 적용하고(origin이 자신이면 재전송하지 않음), 다시 전송하지 않는다.
 - UndoManager는 `trackedOrigins: new Set([LOCAL_ORIGIN])`. 한 번에 되돌려야 하는 작업(AI 적용, 범위 지우기)은 transact 하나로 묶고 앞뒤로 `stopCapturing()`.
 - 참여자 ID와 Y.Doc clientID는 탭 로드마다 새로 만든다. sessionStorage에 두지 않는다(탭 복제 시 복사됨).
 
