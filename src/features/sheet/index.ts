@@ -14,6 +14,7 @@ export {
   cellKey,
   cellLabel,
   type CellAddress,
+  type CellAlign,
   type CellFormatName,
 } from "./model/cell";
 export {

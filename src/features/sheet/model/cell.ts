@@ -17,6 +17,29 @@ export function formatKey(addr: CellAddress, format: CellFormatName): string {
   return `${cellKey(addr)}:${format}`;
 }
 
+/** 값 서식(토글이 아닌 선택값): 정렬과 글자 크기 (S4·D3) */
+export const CELL_ALIGNS = ["left", "center", "right"] as const;
+export type CellAlign = (typeof CELL_ALIGNS)[number];
+export const CELL_FONT_SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24] as const;
+export const DEFAULT_FONT_SIZE = 13;
+
+export type CellStyleName = "align" | "size";
+
+export function styleKey(addr: CellAddress, style: CellStyleName): string {
+  return `${cellKey(addr)}:${style}`;
+}
+
+export function isCellAlign(v: unknown): v is CellAlign {
+  return (
+    typeof v === "string" && (CELL_ALIGNS as readonly string[]).includes(v)
+  );
+}
+
+/** 정렬이 지정되지 않은 셀의 기본: 숫자는 오른쪽, 그 외 왼쪽 */
+export function defaultAlign(value: string): CellAlign {
+  return isNumericValue(value) ? "right" : "left";
+}
+
 export function parseCellKey(key: string): CellAddress | null {
   const [row, col] = key.split(":").map(Number);
   if (row === undefined || col === undefined) return null;

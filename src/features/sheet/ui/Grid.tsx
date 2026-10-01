@@ -150,14 +150,14 @@ export const SheetGrid = memo(function SheetGrid({
           gridAutoRows: `${CELL_H}px`,
         }}
       >
-        <div className="border-line bg-surface-2 sticky top-0 left-0 z-30 border-r border-b" />
+        <div className="border-line-2 bg-grid-head sticky top-0 left-0 z-30 border-r border-b" />
         {COLS.map((col) => (
           <div
             key={col}
-            className={`border-line sticky top-0 z-20 border-r border-b text-center text-[11px] leading-[26px] font-medium ${
+            className={`border-line-2 sticky top-0 z-20 border-r border-b text-center text-[11px] leading-[26px] font-medium ${
               col >= norm.left && col <= norm.right
                 ? "bg-accent-soft text-accent"
-                : "bg-surface-2 text-ink-2"
+                : "bg-grid-head text-ink-2"
             }`}
           >
             {columnLabel(col)}
@@ -166,10 +166,10 @@ export const SheetGrid = memo(function SheetGrid({
         {ROWS.map((row) => (
           <div key={row} className="contents">
             <div
-              className={`border-line sticky left-0 z-10 border-r border-b text-center text-[11px] leading-[26px] font-medium tabular-nums ${
+              className={`border-line-2 sticky left-0 z-10 border-r border-b text-center text-[11px] leading-[26px] font-medium tabular-nums ${
                 row >= norm.top && row <= norm.bottom
                   ? "bg-accent-soft text-accent"
-                  : "bg-surface-2 text-ink-2"
+                  : "bg-grid-head text-ink-2"
               }`}
             >
               {row + 1}

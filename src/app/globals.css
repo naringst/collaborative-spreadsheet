@@ -1,10 +1,11 @@
 @import "tailwindcss";
 
-/* 디자인 토큰 — Notion/Linear 계열의 중립 팔레트. 시트 화면은 라이트 고정이므로
-   다크 변형을 두지 않는다 (SheetScreen 주석 참고) */
+/* 디자인 토큰 — 푸른 기가 살짝 도는 슬레이트 중립색 한 계열로 통일하고, 강조색은
+   같은 색상환의 파랑 하나만 쓴다. 시트 화면은 라이트 고정이므로 다크 변형을 두지 않는다
+   (SheetScreen 주석 참고) */
 :root {
   --background: #ffffff;
-  --foreground: #1f1f1e;
+  --foreground: #1b1f27;
 }
 
 @theme inline {
@@ -14,23 +15,60 @@
   --font-mono: var(--font-geist-mono);
 
   /* 텍스트 */
-  --color-ink: #1f1f1e;
-  --color-ink-2: #6b6b68;
-  --color-ink-3: #9d9d9a;
+  --color-ink: #1b1f27;
+  --color-ink-2: #5d6675;
+  --color-ink-3: #8e97a6;
   /* 면 */
   --color-surface: #ffffff;
-  --color-surface-2: #f7f7f6;
-  --color-surface-3: #efefed;
+  --color-surface-2: #f5f6f8;
+  --color-surface-3: #eaedf1;
+  /* 행·열 헤더 — 사이드바와 같은 면(surface-2). 셀과의 구분은 색이 아니라 조금 진한
+     경계선(line-2)으로 한다 */
+  --color-grid-head: var(--color-surface-2);
+  /* 사이드바 — 행·열 헤더와 같은 surface-2. 글자·호버는
+     사이드바 전용 토큰을 거쳐 본문 토큰을 가리킨다 (색을 바꿀 때 한 곳만 손대도록) */
+  --color-sidebar: var(--color-surface-2);
+  --color-sidebar-2: var(--color-surface);
+  --color-sidebar-line: var(--color-line);
+  --color-sidebar-fg: var(--color-ink);
+  --color-sidebar-fg-2: var(--color-ink-2);
   /* 선 */
-  --color-line: #e6e6e3;
-  --color-line-2: #d2d2ce;
+  --color-line: #e4e7ec;
+  --color-line-2: #cfd4dc;
   /* 강조 */
-  --color-accent: #2f6fed;
-  --color-accent-soft: #e8f0fe;
+  --color-accent: #3466e8;
+  --color-accent-soft: #e8eefc;
+  /* 상태 — 경고·오류도 같은 채도 대역으로 */
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf3e3;
+  --color-danger: #d2383d;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Tailwind v4 preflight는 버튼 커서를 default로 둔다 — 클릭 가능한 컨트롤은 전부 포인터 */
+@layer base {
+  button:not(:disabled),
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+  /* 호버·눌림 상태가 툭 바뀌지 않게 — 색만 짧게 보간한다 */
+  button,
+  select,
+  a {
+    transition:
+      background-color 120ms ease,
+      color 120ms ease,
+      border-color 120ms ease,
+      box-shadow 120ms ease,
+      transform 80ms ease;
+  }
+  button:not(:disabled):active {
+    transform: scale(0.97);
+  }
 }

@@ -270,3 +270,61 @@ describe("C3 값·서식 동시 편집 수렴", () => {
     }
   });
 });
+
+describe("S4 정렬·글자 크기 (선택값 서식)", () => {
+  it("기본값: 정렬 null, 크기 13", () => {
+    const { store } = setup();
+    expect(store.getCellAlign(A1)).toBeNull();
+    expect(store.getCellSize(A1)).toBe(13);
+  });
+
+  it("정렬을 지정하고 null로 되돌리면 키가 사라진다", () => {
+    const { doc, store } = setup();
+    store.setCellAlign(single(A1), "center");
+    expect(store.getCellAlign(A1)).toBe("center");
+    store.setCellAlign(single(A1), null);
+    expect(store.getCellAlign(A1)).toBeNull();
+    expect(doc.getMap("cells").has("0:0:align")).toBe(false);
+  });
+
+  it("기본 크기로 되돌리면 키가 사라진다", () => {
+    const { doc, store } = setup();
+    store.setCellSize(single(B2), 18);
+    expect(store.getCellSize(B2)).toBe(18);
+    expect(doc.getMap("cells").get("1:1:size")).toBe(18);
+    store.setCellSize(single(B2), 13);
+    expect(doc.getMap("cells").has("1:1:size")).toBe(false);
+  });
+
+  it("범위 전체에 적용되고 범위 밖은 건드리지 않는다", () => {
+    const { store } = setup();
+    store.setCellAlign({ anchor: A1, focus: B2 }, "right");
+    expect(store.getCellAlign(A1)).toBe("right");
+    expect(store.getCellAlign({ row: 0, col: 1 })).toBe("right");
+    expect(store.getCellAlign(B2)).toBe("right");
+    expect(store.getCellAlign(LAST)).toBeNull();
+  });
+
+  it("범위 설정은 undo 1단계로 되돌아간다 (S5)", () => {
+    const { store, undo } = setup();
+    store.setCellSize({ anchor: A1, focus: B2 }, 20);
+    undo.undo();
+    expect(store.getCellSize(A1)).toBe(13);
+    expect(store.getCellSize(B2)).toBe(13);
+    undo.redo();
+    expect(store.getCellSize(B2)).toBe(20);
+  });
+
+  it("값과 정렬은 독립적으로 병합된다 (C3)", () => {
+    const { doc: a, store: sa } = setup();
+    const { doc: b, store: sb } = setup();
+    sa.setCellValue(A1, "hello");
+    sb.setCellAlign(single(A1), "center");
+    applyRemote(a, b);
+    applyRemote(b, a);
+    expect(sa.getCellValue(A1)).toBe("hello");
+    expect(sa.getCellAlign(A1)).toBe("center");
+    expect(sb.getCellValue(A1)).toBe("hello");
+    expect(sb.getCellAlign(A1)).toBe("center");
+  });
+});

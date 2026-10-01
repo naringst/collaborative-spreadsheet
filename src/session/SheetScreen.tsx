@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { AiPanel, AiTargetOverlay } from "@/features/ai";
 import { ParticipantList, RemoteSelectionOverlay } from "@/features/collab";
 import {
@@ -13,15 +13,27 @@ import {
   type GridCursor,
 } from "@/features/sheet";
 import { CenteredNotice, StorageWarningBanner } from "@/shared/ui/Notice";
+import { useSheetListSession } from "./SheetListSession";
 import { SheetSessionProvider, useSheetSession } from "./SheetSession";
+
+const NOOP_SUBSCRIBE = () => () => {};
 
 const INITIAL_CURSOR: GridCursor = {
   range: { anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } },
   editing: null,
 };
 
-function SheetWorkspace() {
+function SheetWorkspace({ sheetId }: { sheetId?: string }) {
   const session = useSheetSession();
+  const listSession = useSheetListSession();
+  const listStore =
+    listSession.status === "ready" ? listSession.listStore : null;
+  // 제목은 목록 doc이 원본 — 다른 탭에서 이름을 바꾸면 여기도 따라간다
+  const sheetName = useSyncExternalStore(
+    listStore?.subscribe ?? NOOP_SUBSCRIBE,
+    () => (sheetId && listStore?.getSheet(sheetId)?.name) || "",
+    () => "",
+  );
 
   // 훅 순서 유지를 위해 분기 위에서 선언 — loading이면 presence가 없어 no-op
   const presence = session.status === "ready" ? session.presence : null;
@@ -67,6 +79,13 @@ function SheetWorkspace() {
         store={store}
         undo={undo}
         cursor={cursor}
+        leading={
+          sheetName && (
+            <h2 className="text-ink truncate text-[14px] font-semibold tracking-tight">
+              {sheetName}
+            </h2>
+          )
+        }
         trailing={
           <>
             {presence && <ParticipantList presence={presence} />}
@@ -78,7 +97,7 @@ function SheetWorkspace() {
                   aria-pressed={aiOpen}
                   className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium ${
                     aiOpen
-                      ? "bg-accent text-white"
+                      ? "bg-accent text-surface"
                       : "bg-accent-soft text-accent hover:brightness-95"
                   }`}
                   onClick={() => setAiOpen((v) => !v)}
@@ -126,7 +145,9 @@ function SheetWorkspace() {
         )}
       </div>
       <div className="border-line bg-surface-2 text-ink-3 flex h-8 shrink-0 items-center gap-3 border-t px-3 text-[11.5px]">
-        <span className="text-ink-2 font-mono">{rangeLabel(cursor.range)}</span>
+        <span className="border-line bg-surface text-ink-2 rounded border px-1.5 font-mono text-[11px]">
+          {rangeLabel(cursor.range)}
+        </span>
         {!isSingleCell(cursor.range) && <span>{cellCount}개 셀</span>}
         {cursor.editing && <span>입력 중</span>}
       </div>
@@ -138,7 +159,7 @@ function SheetWorkspace() {
 export function SheetScreen({ sheetId }: { sheetId?: string }) {
   return (
     <SheetSessionProvider sheetId={sheetId}>
-      <SheetWorkspace />
+      <SheetWorkspace sheetId={sheetId} />
     </SheetSessionProvider>
   );
 }

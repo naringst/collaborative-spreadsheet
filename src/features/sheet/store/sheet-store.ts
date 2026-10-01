@@ -1,10 +1,14 @@
 import * as Y from "yjs";
 import {
   CELL_FORMATS,
+  DEFAULT_FONT_SIZE,
   cellKey,
   formatKey,
+  isCellAlign,
   parseCellKey,
+  styleKey,
   type CellAddress,
+  type CellAlign,
   type CellFormatName,
 } from "../model/cell";
 import { cellsInRange, type CellRange } from "../model/range";
@@ -29,6 +33,13 @@ export interface SheetStore {
   /** 범위 전체 토글: 하나라도 꺼져 있으면 모두 켜고, 모두 켜져 있으면 모두 끈다 (S4) */
   toggleFormat(range: CellRange, format: CellFormatName): void;
   getCellFormat(addr: CellAddress, format: CellFormatName): boolean;
+  /** 범위 전체에 정렬을 지정한다. null이면 지정 해제(자동: 숫자 오른쪽·그 외 왼쪽) */
+  setCellAlign(range: CellRange, align: CellAlign | null): void;
+  /** 지정된 정렬. 지정이 없으면 null — 기본값 판단은 값을 아는 쪽(UI)이 한다 */
+  getCellAlign(addr: CellAddress): CellAlign | null;
+  /** 범위 전체 글자 크기(px). 기본 크기면 키를 지운다 */
+  setCellSize(range: CellRange, size: number): void;
+  getCellSize(addr: CellAddress): number;
   /** isLocalChange: 이 탭의 편집·undo에서 비롯된 변경 (D6 원격 감지 구분용) */
   subscribe(listener: (info?: { isLocalChange: boolean }) => void): () => void;
 }
@@ -44,9 +55,10 @@ function valueKey(addr: CellAddress): string {
 }
 
 export function createSheetStore(doc: Y.Doc): SheetStore {
-  // 값("r:c:v")은 string, 서식("r:c:bold" 등)은 true. 꺼진 서식은 키가 없다 —
-  // 빈 값 = 키 삭제 규약과 대칭이라 false 잔여 키가 남지 않는다.
-  const cells = doc.getMap<string | boolean>("cells");
+  // 값("r:c:v")은 string, 서식("r:c:bold" 등)은 true, 정렬("r:c:align")은 string,
+  // 크기("r:c:size")는 number. 꺼진 서식·기본값은 키가 없다 — 빈 값 = 키 삭제
+  // 규약과 대칭이라 false·기본값 잔여 키가 남지 않는다.
+  const cells = doc.getMap<string | boolean | number>("cells");
 
   function getValue(addr: CellAddress): string {
     const v = cells.get(valueKey(addr));
@@ -55,6 +67,16 @@ export function createSheetStore(doc: Y.Doc): SheetStore {
 
   function getFormat(addr: CellAddress, format: CellFormatName): boolean {
     return cells.get(formatKey(addr, format)) === true;
+  }
+
+  function getAlign(addr: CellAddress): CellAlign | null {
+    const v = cells.get(styleKey(addr, "align"));
+    return isCellAlign(v) ? v : null;
+  }
+
+  function getSize(addr: CellAddress): number {
+    const v = cells.get(styleKey(addr, "size"));
+    return typeof v === "number" ? v : DEFAULT_FONT_SIZE;
   }
 
   function setValue(addr: CellAddress, value: string) {
@@ -112,11 +134,34 @@ export function createSheetStore(doc: Y.Doc): SheetStore {
         }
       }, LOCAL_ORIGIN);
     },
+    setCellAlign(range, align) {
+      // 이미 같은 값인 셀은 건드리지 않는다 — undo가 정확히 원래 상태로 복구된다
+      doc.transact(() => {
+        for (const addr of cellsInRange(range)) {
+          if (getAlign(addr) === align) continue;
+          const key = styleKey(addr, "align");
+          if (align === null) cells.delete(key);
+          else cells.set(key, align);
+        }
+      }, LOCAL_ORIGIN);
+    },
+    setCellSize(range, size) {
+      doc.transact(() => {
+        for (const addr of cellsInRange(range)) {
+          if (getSize(addr) === size) continue;
+          const key = styleKey(addr, "size");
+          if (size === DEFAULT_FONT_SIZE) cells.delete(key);
+          else cells.set(key, size);
+        }
+      }, LOCAL_ORIGIN);
+    },
     getCellValue: getValue,
     getCellFormat: getFormat,
+    getCellAlign: getAlign,
+    getCellSize: getSize,
     subscribe(listener) {
       const handler = (
-        _event: Y.YMapEvent<string | boolean>,
+        _event: Y.YMapEvent<string | boolean | number>,
         transaction: Y.Transaction,
       ) => {
         listener({

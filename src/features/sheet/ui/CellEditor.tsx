@@ -50,7 +50,7 @@ export function CellEditor({
     <>
       {editing && remoteConflict && (
         <div
-          className="pointer-events-none absolute z-[7] rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] whitespace-nowrap text-amber-900 shadow-sm"
+          className="bg-warn-soft text-warn pointer-events-none absolute z-[7] rounded-md px-1.5 py-0.5 text-[11px] whitespace-nowrap shadow-sm"
           style={{ left: rect.left, top: rect.top - 24 }}
         >
           다른 참여자가 이 셀을 변경했습니다

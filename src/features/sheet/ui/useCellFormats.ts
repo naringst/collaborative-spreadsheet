@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { CellAddress, CellFormatName } from "../model/cell";
+import type { CellAddress, CellAlign, CellFormatName } from "../model/cell";
 import type { SheetStore } from "../store/sheet-store";
 
 function useFormat(
@@ -23,4 +23,22 @@ export function useCellFormats(store: SheetStore, addr: CellAddress) {
     underline: useFormat(store, addr, "underline"),
     strike: useFormat(store, addr, "strike"),
   };
+}
+
+/** 셀 하나의 정렬·크기. 둘 다 원시값이라 캐시가 필요 없다. */
+export function useCellStyle(
+  store: SheetStore,
+  addr: CellAddress,
+): { align: CellAlign | null; size: number } {
+  const align = useSyncExternalStore(
+    store.subscribe,
+    () => store.getCellAlign(addr),
+    () => null,
+  );
+  const size = useSyncExternalStore(
+    store.subscribe,
+    () => store.getCellSize(addr),
+    () => 13,
+  );
+  return { align, size };
 }

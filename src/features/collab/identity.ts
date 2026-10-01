@@ -44,14 +44,14 @@ export function generateName(rand: () => number = Math.random): string {
 
 /** 옅은 선택 배경 위에서도 구분되는 진한 색 (C4: 테두리 대비) */
 export const PARTICIPANT_PALETTE: readonly string[] = [
-  "#e11d48", // rose
-  "#ea580c", // orange
-  "#ca8a04", // yellow-dark
-  "#16a34a", // green
-  "#0d9488", // teal
-  "#7c3aed", // violet
-  "#db2777", // pink
-  "#0284c7", // sky
+  "#e2445c", // rose
+  "#e8732a", // orange
+  "#c99a06", // amber
+  "#2f9e5b", // green
+  "#1a9c94", // teal
+  "#7a5af5", // violet
+  "#d64da0", // pink
+  "#2a8fd6", // sky
 ];
 
 /**

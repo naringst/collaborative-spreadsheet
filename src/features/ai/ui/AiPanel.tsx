@@ -276,7 +276,7 @@ function ProposalCard({
         <p className="text-ink-3">취소됨 — 부분 결과는 적용할 수 없습니다.</p>
       )}
       {session.status === "error" && (
-        <p className="text-red-600">
+        <p className="text-danger">
           {aiErrorMessage(session.error ?? "server")}
         </p>
       )}

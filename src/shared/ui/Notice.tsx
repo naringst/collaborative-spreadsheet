@@ -12,7 +12,7 @@ export function CenteredNotice({ children }: { children: ReactNode }) {
 /** 저장소를 쓸 수 없을 때의 경고 배너 (S6) */
 export function StorageWarningBanner() {
   return (
-    <div className="border-b border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-900">
+    <div className="border-line bg-warn-soft text-warn border-b px-3 py-1 text-[12px]">
       브라우저 저장소를 사용할 수 없어 변경 사항이 저장되지 않습니다.
     </div>
   );

@@ -76,38 +76,29 @@ export function SheetListSidebar() {
   const toggle = () => setCollapsed(!collapsed);
 
   return (
-    // 폭만 트랜지션하고 내용(w-64)은 그대로 두면 접힐 때 토글만 남고 나머지는 가려진다
-    <aside
-      className={`border-line bg-surface-2 text-ink shrink-0 overflow-hidden border-r transition-[width] duration-200 ease-in-out ${
-        collapsed ? "w-11" : "w-56"
-      }`}
-    >
-      {session.status === "loading" ? (
-        <div className="flex h-11 items-center gap-1.5 px-2">
-          <button
-            type="button"
-            className="text-ink-2 hover:bg-surface-3 grid h-7 w-7 shrink-0 place-items-center rounded-md"
-            onClick={toggle}
-            aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-            title={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-          >
-            «
-          </button>
-          <span className="text-ink-3 text-[13px] whitespace-nowrap">
+    // 폭만 트랜지션한다. 접혀도 로고·새 시트·시트 아이콘 열은 남는다
+    <div className="shrink-0">
+      <aside
+        className={`border-sidebar-line bg-sidebar text-sidebar-fg h-full overflow-hidden border-r transition-[width] duration-200 ease-in-out ${
+          collapsed ? "w-11" : "w-56"
+        }`}
+      >
+        {session.status === "loading" ? (
+          <div className="text-sidebar-fg-2 flex h-12 w-56 items-center px-3 text-[13px] whitespace-nowrap">
             불러오는 중…
-          </span>
-        </div>
-      ) : (
-        <div className="flex h-full flex-col">
-          {session.storageWarning && <StorageWarningBanner />}
-          <ListWithStore
-            listStore={session.listStore}
-            activeSheetId={activeSheetId}
-            collapsed={collapsed}
-            onToggleCollapse={toggle}
-          />
-        </div>
-      )}
-    </aside>
+          </div>
+        ) : (
+          <div className="flex h-full flex-col">
+            {session.storageWarning && <StorageWarningBanner />}
+            <ListWithStore
+              listStore={session.listStore}
+              activeSheetId={activeSheetId}
+              collapsed={collapsed}
+              onToggleCollapse={toggle}
+            />
+          </div>
+        )}
+      </aside>
+    </div>
   );
 }
