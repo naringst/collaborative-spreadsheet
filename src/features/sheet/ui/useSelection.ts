@@ -15,6 +15,11 @@ export function useSelection() {
     setRange({ anchor: addr, focus: addr });
   }, []);
 
+  /** 행·열 전체 선택처럼 anchor와 focus를 한 번에 정한다 (S1 P2) */
+  const selectRange = useCallback((next: CellRange) => {
+    setRange(next);
+  }, []);
+
   const extendTo = useCallback((addr: CellAddress) => {
     setRange((r) => ({ anchor: r.anchor, focus: addr }));
   }, []);
@@ -37,6 +42,7 @@ export function useSelection() {
     range,
     active: range.anchor,
     selectCell,
+    selectRange,
     extendTo,
     moveActive,
     extendBy,

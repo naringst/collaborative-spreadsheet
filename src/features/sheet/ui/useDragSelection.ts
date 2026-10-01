@@ -5,12 +5,23 @@ import {
   type PointerEvent,
   type RefObject,
 } from "react";
-import { moveWithinGrid, type CellAddress } from "../model/cell";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  moveWithinGrid,
+  type CellAddress,
+} from "../model/cell";
 import { CELL_H, CELL_W, HEADER_H, HEADER_W } from "./metrics";
 
 /** 드래그 자동 스크롤: 가장자리 이 거리 안이면 프레임당 이 픽셀만큼 스크롤 */
 const EDGE = 24;
 const SCROLL_STEP = 16;
+
+/**
+ * 드래그 축. 헤더에서 시작한 드래그는 열(또는 행) 단위로만 확장되고, focus는
+ * 항상 마지막 행(또는 열)에 고정된다 (S1 P2)
+ */
+export type DragAxis = "cell" | "col" | "row";
 
 /**
  * 포인터 드래그로 선택 범위를 확장한다 (S1). 포인터 캡처로 창 밖에서도
@@ -21,7 +32,20 @@ export function useDragSelection(
   extendTo: (addr: CellAddress) => void,
 ) {
   const pointer = useRef<{ x: number; y: number } | null>(null);
+  const axis = useRef<DragAxis>("cell");
   const rafId = useRef<number | null>(null);
+
+  // 축 모드에 맞춰 focus를 보정한다 — 열 드래그면 행은 끝까지, 행 드래그면 열은 끝까지
+  const extendAlongAxis = useCallback(
+    (addr: CellAddress) => {
+      if (axis.current === "col")
+        extendTo({ row: GRID_ROWS - 1, col: addr.col });
+      else if (axis.current === "row")
+        extendTo({ row: addr.row, col: GRID_COLS - 1 });
+      else extendTo(addr);
+    },
+    [extendTo],
+  );
 
   // 포인터 좌표 → 셀 주소. 헤더·콘텐츠 밖 좌표는 가장 가까운 셀로 클램프되어
   // 창 밖 드래그에서도 마지막 행·열까지 확장된다
@@ -58,9 +82,10 @@ export function useDragSelection(
   useEffect(() => stop, [stop]);
 
   const begin = useCallback(
-    (e: PointerEvent) => {
+    (e: PointerEvent, mode: DragAxis = "cell") => {
       containerRef.current?.setPointerCapture(e.pointerId);
       pointer.current = { x: e.clientX, y: e.clientY };
+      axis.current = mode;
 
       const step = () => {
         rafId.current = null;
@@ -77,14 +102,14 @@ export function useDragSelection(
         if (dx || dy) {
           container.scrollBy(dx, dy);
           const next = addrFromPointer(p.x, p.y);
-          if (next) extendTo(next);
+          if (next) extendAlongAxis(next);
         }
         rafId.current = requestAnimationFrame(step);
       };
       // rafId 가드로 루프는 하나만 돈다 (빠른 down-up-down에서도)
       if (rafId.current === null) rafId.current = requestAnimationFrame(step);
     },
-    [containerRef, addrFromPointer, extendTo],
+    [containerRef, addrFromPointer, extendAlongAxis],
   );
 
   const move = useCallback(
@@ -97,9 +122,9 @@ export function useDragSelection(
       }
       pointer.current = { x: e.clientX, y: e.clientY };
       const addr = addrFromPointer(e.clientX, e.clientY);
-      if (addr) extendTo(addr);
+      if (addr) extendAlongAxis(addr);
     },
-    [addrFromPointer, extendTo, stop],
+    [addrFromPointer, extendAlongAxis, stop],
   );
 
   return { begin, move, stop };

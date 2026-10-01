@@ -29,8 +29,23 @@ import { useSelection } from "./useSelection";
 const ROWS = Array.from({ length: GRID_ROWS }, (_, i) => i);
 const COLS = Array.from({ length: GRID_COLS }, (_, i) => i);
 
+/** 헤더 클릭 대상: 열 헤더·행 헤더·모서리(전체) */
+type HeaderHit =
+  { kind: "col"; col: number } | { kind: "row"; row: number } | { kind: "all" };
+
+function headerFromEventTarget(target: EventTarget): HeaderHit | null {
+  const el = (target as HTMLElement).closest?.("[data-header]");
+  if (!(el instanceof HTMLElement)) return null;
+  const kind = el.dataset.header;
+  if (kind === "col") return { kind, col: Number(el.dataset.col) };
+  if (kind === "row") return { kind, row: Number(el.dataset.row) };
+  if (kind === "all") return { kind };
+  return null;
+}
+
 function addrFromEventTarget(target: EventTarget): CellAddress | null {
-  const el = (target as HTMLElement).closest?.("[data-row]");
+  // 행 헤더도 data-row를 가지므로 둘 다 있는 셀만 찾는다
+  const el = (target as HTMLElement).closest?.("[data-row][data-col]");
   if (!(el instanceof HTMLElement)) return null;
   return { row: Number(el.dataset.row), col: Number(el.dataset.col) };
 }
@@ -64,7 +79,7 @@ export const SheetGrid = memo(function SheetGrid({
   const editingApi = useEditing(store, inputRef);
   const onKeyDown = useGridKeyboard(store, selection, editingApi, undo);
 
-  const { range, active, selectCell, extendTo } = selection;
+  const { range, active, selectCell, selectRange, extendTo } = selection;
   const { editing, remoteConflict, start, commit } = editingApi;
   const drag = useDragSelection(containerRef, extendTo);
 
@@ -93,8 +108,35 @@ export const SheetGrid = memo(function SheetGrid({
       ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [active]);
 
+  // 헤더 클릭·드래그 = 행·열 전체 선택 (S1 P2). anchor(활성 셀)는 그 행·열의 첫 셀,
+  // focus는 끝 셀. Shift+클릭은 기존 anchor를 두고 끝만 옮긴다
+  const onHeaderPointerDown = (e: PointerEvent, hit: HeaderHit) => {
+    e.preventDefault();
+    inputRef.current?.focus({ preventScroll: true });
+    if (editing) commit();
+    const last = { row: GRID_ROWS - 1, col: GRID_COLS - 1 };
+    if (hit.kind === "all") {
+      selectRange({ anchor: { row: 0, col: 0 }, focus: last });
+      return;
+    }
+    const first =
+      hit.kind === "col" ? { row: 0, col: hit.col } : { row: hit.row, col: 0 };
+    const end =
+      hit.kind === "col"
+        ? { row: last.row, col: hit.col }
+        : { row: hit.row, col: last.col };
+    if (e.shiftKey) extendTo(end);
+    else selectRange({ anchor: first, focus: end });
+    drag.begin(e, hit.kind);
+  };
+
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
+    const header = headerFromEventTarget(e.target);
+    if (header) {
+      onHeaderPointerDown(e, header);
+      return;
+    }
     // 셀 밖(스크롤바 등)은 건드리지 않는다 — pointerdown preventDefault는
     // 네이티브 스크롤바 드래그까지 막는다
     const addr = addrFromEventTarget(e.target);
@@ -150,11 +192,17 @@ export const SheetGrid = memo(function SheetGrid({
           gridAutoRows: `${CELL_H}px`,
         }}
       >
-        <div className="border-line-2 bg-grid-head sticky top-0 left-0 z-30 border-r border-b" />
+        <div
+          data-header="all"
+          title="전체 선택"
+          className="border-line-2 bg-grid-head sticky top-0 left-0 z-30 cursor-pointer border-r border-b"
+        />
         {COLS.map((col) => (
           <div
             key={col}
-            className={`border-line-2 sticky top-0 z-20 border-r border-b text-center text-[11px] leading-[26px] font-medium ${
+            data-header="col"
+            data-col={col}
+            className={`border-line-2 sticky top-0 z-20 cursor-pointer border-r border-b text-center text-[11px] leading-[26px] font-medium ${
               col >= norm.left && col <= norm.right
                 ? "bg-accent-soft text-accent"
                 : "bg-grid-head text-ink-2"
@@ -166,7 +214,9 @@ export const SheetGrid = memo(function SheetGrid({
         {ROWS.map((row) => (
           <div key={row} className="contents">
             <div
-              className={`border-line-2 sticky left-0 z-10 border-r border-b text-center text-[11px] leading-[26px] font-medium tabular-nums ${
+              data-header="row"
+              data-row={row}
+              className={`border-line-2 sticky left-0 z-10 cursor-pointer border-r border-b text-center text-[11px] leading-[26px] font-medium tabular-nums ${
                 row >= norm.top && row <= norm.bottom
                   ? "bg-accent-soft text-accent"
                   : "bg-grid-head text-ink-2"
