@@ -87,7 +87,7 @@ export function SheetList({
         )}
         <button
           type="button"
-          className="text-sidebar-fg-2 hover:bg-sidebar-2 hover:text-sidebar-fg grid h-7 w-7 shrink-0 place-items-center rounded-md"
+          className="text-sidebar-fg-2 hover:bg-sidebar-hover hover:text-sidebar-fg grid h-7 w-7 shrink-0 place-items-center rounded-md"
           onClick={onToggleCollapse}
           aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
           aria-expanded={!collapsed}
@@ -105,7 +105,7 @@ export function SheetList({
         {!collapsed && <span>시트</span>}
         <button
           type="button"
-          className="text-sidebar-fg-2 hover:bg-sidebar-2 hover:text-sidebar-fg grid h-5 w-5 place-items-center rounded text-[14px]"
+          className="text-sidebar-fg-2 hover:bg-sidebar-hover hover:text-sidebar-fg grid h-6 w-6 place-items-center rounded-md text-[15px] leading-none"
           onClick={onCreate}
           aria-label="새 시트"
           title="새 시트"
@@ -130,7 +130,7 @@ export function SheetList({
               } ${
                 active
                   ? "bg-sidebar-2 font-medium text-sidebar-fg shadow-[0_1px_2px_rgba(0,0,0,0.06),0_0_0_1px_var(--color-sidebar-line)]"
-                  : "text-sidebar-fg-2 hover:bg-sidebar-2/60 hover:text-sidebar-fg"
+                  : "text-sidebar-fg-2 hover:bg-sidebar-hover hover:text-sidebar-fg"
               }`;
               if (renamingId === sheet.id && !collapsed) {
                 return (

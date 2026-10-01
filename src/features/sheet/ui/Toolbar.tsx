@@ -6,6 +6,7 @@ import {
   CELL_ALIGNS,
   CELL_FONT_SIZES,
   CELL_FORMATS,
+  DEFAULT_FONT_SIZE,
   defaultAlign,
   type CellAlign,
   type CellFormatName,
@@ -42,16 +43,7 @@ const ALIGN_BUTTONS: Record<CellAlign, { title: string; path: string }> = {
 };
 
 const BUTTON =
-  "inline-flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-[13px] text-ink-2 hover:bg-surface hover:text-ink hover:shadow-[0_1px_2px_rgba(0,0,0,0.06)] aria-pressed:bg-surface aria-pressed:text-accent aria-pressed:shadow-[0_1px_2px_rgba(0,0,0,0.08)] disabled:pointer-events-none disabled:opacity-35";
-
-/** 툴바 버튼 묶음 — 옅은 트레이 위에 올려 그룹 경계를 보여 준다 */
-function Group({ children }: { children: ReactNode }) {
-  return (
-    <div className="bg-surface-2 flex items-center gap-0.5 rounded-lg p-0.5">
-      {children}
-    </div>
-  );
-}
+  "inline-flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-[13px] text-ink-2 hover:bg-surface-3 hover:text-ink aria-pressed:bg-accent-soft aria-pressed:text-accent disabled:pointer-events-none disabled:opacity-40";
 
 function UndoIcon({ flip = false }: { flip?: boolean }) {
   return (
@@ -74,7 +66,159 @@ function UndoIcon({ flip = false }: { flip?: boolean }) {
 }
 
 export function ToolbarSeparator() {
-  return <div className="bg-line-2 mx-1 h-[18px] w-px" aria-hidden />;
+  return <div className="bg-line-2 mx-1.5 h-[18px] w-px" aria-hidden />;
+}
+
+interface ToolbarViewProps {
+  canUndo: boolean;
+  canRedo: boolean;
+  formats: Record<CellFormatName, boolean>;
+  align: CellAlign;
+  size: number;
+  /** 세션 로드 전 자리 표시 — 모든 컨트롤을 비활성으로 그린다 */
+  disabled?: boolean;
+  onUndo?(): void;
+  onRedo?(): void;
+  onToggleFormat?(format: CellFormatName): void;
+  onAlign?(align: CellAlign): void;
+  onSize?(size: number): void;
+  trailing?: ReactNode;
+}
+
+/** 툴바의 순수 표시 부분 — 상태는 props로만 받는다 (스켈레톤과 공유) */
+function ToolbarView({
+  canUndo,
+  canRedo,
+  formats,
+  align: activeAlign,
+  size,
+  disabled = false,
+  onUndo,
+  onRedo,
+  onToggleFormat,
+  onAlign,
+  onSize,
+  trailing,
+}: ToolbarViewProps) {
+  return (
+    <div
+      className="border-line bg-surface flex h-11 shrink-0 items-center gap-0.5 border-b px-2.5"
+      // 버튼 클릭이 그리드 input의 포커스를 뺏지 않게 한다 (클릭 동작은 유지됨)
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <Tooltip label="실행 취소" shortcut="⌘Z">
+        <button
+          type="button"
+          className={BUTTON}
+          disabled={disabled || !canUndo}
+          onClick={onUndo}
+          aria-label="실행 취소"
+        >
+          <UndoIcon />
+        </button>
+      </Tooltip>
+      <Tooltip label="다시 실행" shortcut="⌘⇧Z">
+        <button
+          type="button"
+          className={BUTTON}
+          disabled={disabled || !canRedo}
+          onClick={onRedo}
+          aria-label="다시 실행"
+        >
+          <UndoIcon flip />
+        </button>
+      </Tooltip>
+      <ToolbarSeparator />
+      <Tooltip label="글자 크기">
+        <select
+          className="text-ink hover:bg-surface-3 h-7 rounded-md bg-transparent px-1.5 text-[13px] tabular-nums focus:outline-none disabled:opacity-40"
+          value={size}
+          disabled={disabled}
+          // 툴바의 mousedown preventDefault는 select를 못 열게 하므로 여기서 막는다 —
+          // 선택 뒤 포커스는 셀 클릭으로 돌아온다
+          onMouseDown={(e) => e.stopPropagation()}
+          onChange={(e) => onSize?.(Number(e.target.value))}
+          aria-label="글자 크기"
+        >
+          {CELL_FONT_SIZES.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </Tooltip>
+      <ToolbarSeparator />
+      {CELL_FORMATS.map((format) => {
+        const { label, title, shortcut, className } = FORMAT_BUTTONS[format];
+        return (
+          <Tooltip key={format} label={title} shortcut={shortcut}>
+            <button
+              type="button"
+              aria-pressed={formats[format]}
+              className={`${BUTTON} ${className}`}
+              disabled={disabled}
+              onClick={() => onToggleFormat?.(format)}
+              aria-label={title}
+            >
+              {label}
+            </button>
+          </Tooltip>
+        );
+      })}
+      <ToolbarSeparator />
+      {CELL_ALIGNS.map((align) => {
+        const { title, path } = ALIGN_BUTTONS[align];
+        return (
+          <Tooltip key={align} label={title}>
+            <button
+              type="button"
+              aria-pressed={activeAlign === align}
+              className={BUTTON}
+              disabled={disabled}
+              onClick={() => onAlign?.(align)}
+              aria-label={title}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                <path d={path} />
+              </svg>
+            </button>
+          </Tooltip>
+        );
+      })}
+      {trailing && <div className="ml-auto flex items-center">{trailing}</div>}
+    </div>
+  );
+}
+
+const NO_FORMATS: Record<CellFormatName, boolean> = {
+  bold: false,
+  italic: false,
+  underline: false,
+  strike: false,
+};
+
+/** 시트 로드 전 자리 표시 — 레이아웃이 흔들리지 않도록 같은 모양을 비활성으로 그린다 */
+export function SheetToolbarSkeleton({ trailing }: { trailing?: ReactNode }) {
+  return (
+    <ToolbarView
+      canUndo={false}
+      canRedo={false}
+      formats={NO_FORMATS}
+      align="left"
+      size={DEFAULT_FONT_SIZE}
+      disabled
+      trailing={trailing}
+    />
+  );
 }
 
 interface SheetToolbarProps {
@@ -82,8 +226,6 @@ interface SheetToolbarProps {
   undo: SheetUndo;
   /** 서식 적용 대상 범위와 눌린 상태 기준(활성 셀 = range.anchor) */
   cursor: GridCursor;
-  /** 툴바 왼쪽 끝에 놓을 요소(시트 제목 등) */
-  leading?: ReactNode;
   /** 툴바 우측 끝에 놓을 요소(참여자·AI 버튼 등) — 툴바는 이들을 모른다 */
   trailing?: ReactNode;
 }
@@ -93,7 +235,6 @@ export function SheetToolbar({
   store,
   undo,
   cursor,
-  leading,
   trailing,
 }: SheetToolbarProps) {
   const canUndo = useSyncExternalStore(
@@ -114,117 +255,24 @@ export function SheetToolbar({
     () => "",
   );
   // 지정이 없으면 값 기준 자동 정렬이 눌린 상태로 보인다
-  const activeAlign = activeStyle.align ?? defaultAlign(activeValue);
+  const autoAlign = defaultAlign(activeValue);
 
   return (
-    <div
-      className="border-line bg-surface flex h-12 shrink-0 items-center gap-1.5 border-b px-3"
-      // 버튼 클릭이 그리드 input의 포커스를 뺏지 않게 한다 (클릭 동작은 유지됨)
-      onMouseDown={(e) => e.preventDefault()}
-    >
-      {leading && (
-        <div className="mr-2 flex min-w-0 items-center">{leading}</div>
-      )}
-      <Group>
-        <Tooltip label="실행 취소" shortcut="⌘Z">
-          <button
-            type="button"
-            className={BUTTON}
-            disabled={!canUndo}
-            onClick={() => undo.undo()}
-            aria-label="실행 취소"
-          >
-            <UndoIcon />
-          </button>
-        </Tooltip>
-        <Tooltip label="다시 실행" shortcut="⌘⇧Z">
-          <button
-            type="button"
-            className={BUTTON}
-            disabled={!canRedo}
-            onClick={() => undo.redo()}
-            aria-label="다시 실행"
-          >
-            <UndoIcon flip />
-          </button>
-        </Tooltip>
-      </Group>
-      <Group>
-        <Tooltip label="글자 크기">
-          <select
-            className="text-ink-2 hover:bg-surface hover:text-ink h-7 rounded-md bg-transparent px-1.5 text-[12.5px] font-medium tabular-nums focus:outline-none"
-            value={activeStyle.size}
-            // 툴바의 mousedown preventDefault는 select를 못 열게 하므로 여기서 막는다 —
-            // 선택 뒤 포커스는 셀 클릭으로 돌아온다
-            onMouseDown={(e) => e.stopPropagation()}
-            onChange={(e) =>
-              store.setCellSize(cursor.range, Number(e.target.value))
-            }
-            aria-label="글자 크기"
-          >
-            {CELL_FONT_SIZES.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-        </Tooltip>
-      </Group>
-      <Group>
-        {CELL_FORMATS.map((format) => {
-          const { label, title, shortcut, className } = FORMAT_BUTTONS[format];
-          return (
-            <Tooltip key={format} label={title} shortcut={shortcut}>
-              <button
-                type="button"
-                aria-pressed={activeFormats[format]}
-                className={`${BUTTON} ${className}`}
-                onClick={() => store.toggleFormat(cursor.range, format)}
-                aria-label={title}
-              >
-                {label}
-              </button>
-            </Tooltip>
-          );
-        })}
-      </Group>
-      <Group>
-        {CELL_ALIGNS.map((align) => {
-          const { title, path } = ALIGN_BUTTONS[align];
-          const pressed = activeAlign === align;
-          return (
-            <Tooltip key={align} label={title}>
-              <button
-                type="button"
-                aria-pressed={pressed}
-                className={BUTTON}
-                // 자동 정렬과 같은 값을 고르면 지정을 지운다 — 값이 바뀌어도 자동으로 따라간다
-                onClick={() =>
-                  store.setCellAlign(
-                    cursor.range,
-                    align === defaultAlign(activeValue) ? null : align,
-                  )
-                }
-                aria-label={title}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  aria-hidden
-                >
-                  <path d={path} />
-                </svg>
-              </button>
-            </Tooltip>
-          );
-        })}
-      </Group>
-      {trailing && <div className="ml-auto flex items-center">{trailing}</div>}
-    </div>
+    <ToolbarView
+      canUndo={canUndo}
+      canRedo={canRedo}
+      formats={activeFormats}
+      align={activeStyle.align ?? autoAlign}
+      size={activeStyle.size}
+      onUndo={() => undo.undo()}
+      onRedo={() => undo.redo()}
+      onToggleFormat={(format) => store.toggleFormat(cursor.range, format)}
+      // 자동 정렬과 같은 값을 고르면 지정을 지운다 — 값이 바뀌어도 자동으로 따라간다
+      onAlign={(align) =>
+        store.setCellAlign(cursor.range, align === autoAlign ? null : align)
+      }
+      onSize={(size) => store.setCellSize(cursor.range, size)}
+      trailing={trailing}
+    />
   );
 }

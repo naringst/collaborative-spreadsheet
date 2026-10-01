@@ -1,39 +1,29 @@
 "use client";
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AiPanel, AiTargetOverlay } from "@/features/ai";
 import { ParticipantList, RemoteSelectionOverlay } from "@/features/collab";
 import {
   SheetGrid,
+  SheetGridSkeleton,
   SheetToolbar,
+  SheetToolbarSkeleton,
   ToolbarSeparator,
   isSingleCell,
   normalizeRange,
   rangeLabel,
   type GridCursor,
 } from "@/features/sheet";
-import { CenteredNotice, StorageWarningBanner } from "@/shared/ui/Notice";
-import { useSheetListSession } from "./SheetListSession";
+import { StorageWarningBanner } from "@/shared/ui/Notice";
 import { SheetSessionProvider, useSheetSession } from "./SheetSession";
-
-const NOOP_SUBSCRIBE = () => () => {};
 
 const INITIAL_CURSOR: GridCursor = {
   range: { anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } },
   editing: null,
 };
 
-function SheetWorkspace({ sheetId }: { sheetId?: string }) {
+function SheetWorkspace() {
   const session = useSheetSession();
-  const listSession = useSheetListSession();
-  const listStore =
-    listSession.status === "ready" ? listSession.listStore : null;
-  // 제목은 목록 doc이 원본 — 다른 탭에서 이름을 바꾸면 여기도 따라간다
-  const sheetName = useSyncExternalStore(
-    listStore?.subscribe ?? NOOP_SUBSCRIBE,
-    () => (sheetId && listStore?.getSheet(sheetId)?.name) || "",
-    () => "",
-  );
 
   // 훅 순서 유지를 위해 분기 위에서 선언 — loading이면 presence가 없어 no-op
   const presence = session.status === "ready" ? session.presence : null;
@@ -64,7 +54,18 @@ function SheetWorkspace({ sheetId }: { sheetId?: string }) {
   );
 
   if (session.status === "loading") {
-    return <CenteredNotice>시트를 불러오는 중…</CenteredNotice>;
+    // 서식 줄·행열 헤더는 그대로 두고 셀 영역만 로딩으로 — 시트 전환이 덜 튄다 (S6)
+    return (
+      <div className="bg-surface text-ink flex h-full flex-col">
+        <SheetToolbarSkeleton />
+        <div className="min-h-0 flex-1">
+          <SheetGridSkeleton />
+        </div>
+        <div className="border-line bg-surface-2 text-ink-3 flex h-8 shrink-0 items-center border-t px-3 text-[11.5px]">
+          불러오는 중…
+        </div>
+      </div>
+    );
   }
 
   const { store, undo, storageWarning } = session;
@@ -79,13 +80,6 @@ function SheetWorkspace({ sheetId }: { sheetId?: string }) {
         store={store}
         undo={undo}
         cursor={cursor}
-        leading={
-          sheetName && (
-            <h2 className="text-ink truncate text-[14px] font-semibold tracking-tight">
-              {sheetName}
-            </h2>
-          )
-        }
         trailing={
           <>
             {presence && <ParticipantList presence={presence} />}
@@ -159,7 +153,7 @@ function SheetWorkspace({ sheetId }: { sheetId?: string }) {
 export function SheetScreen({ sheetId }: { sheetId?: string }) {
   return (
     <SheetSessionProvider sheetId={sheetId}>
-      <SheetWorkspace sheetId={sheetId} />
+      <SheetWorkspace />
     </SheetSessionProvider>
   );
 }
