@@ -21,6 +21,7 @@ export {
 } from "./model/proposal-schema";
 export { createChangesExtractor } from "./model/stream-extract";
 export { buildContext, type AiContext } from "./model/context";
+export { buildSystemPrompt } from "./model/prompt";
 export {
   createProposalStore,
   type ProposalSource,

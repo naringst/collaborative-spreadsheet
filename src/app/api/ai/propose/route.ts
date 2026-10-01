@@ -1,5 +1,6 @@
 import {
   PROPOSAL_JSON_SCHEMA,
+  buildSystemPrompt,
   createChangesExtractor,
   type AiContext,
   type AiErrorKind,
@@ -13,7 +14,8 @@ import {
  * 끊으면 request.signal이 업스트림 fetch로 전파돼 LLM 호출도 끊긴다(A4).
  */
 
-const DEFAULT_MODEL = "openai/gpt-4o-mini-2024-07-18"; // 버전 고정 (D11)
+// D11: 버전 고정 모델명을 쓰되, gpt-5-mini는 OpenRouter에 날짜 변형이 없어 기본 id를 쓴다
+const DEFAULT_MODEL = "openai/gpt-5-mini";
 const MAX_TOKENS = 4096; // 요청당 출력 상한 (A7 P1)
 const TIMEOUT_MS = 60_000; // 첫 바이트가 아니라 전체 스트림 상한
 
@@ -22,27 +24,6 @@ interface ProposeBody {
   context: AiContext;
   /** 범위 지정 요청이면 "B2:D10", 시트 전체면 null (A2/D8) */
   targetLabel: string | null;
-}
-
-function systemPrompt(context: AiContext, targetLabel: string | null): string {
-  const cells = context.cells
-    .map((c) => `${c.cell}=${JSON.stringify(c.value)}`)
-    .join(", ");
-  const scope = targetLabel
-    ? `편집 대상은 ${targetLabel} 범위다. 그 범위 안 셀만 바꿔라.`
-    : "시트 전체를 대상으로 한다.";
-  return [
-    "너는 스프레드시트 편집 도우미다. 100행(1~100) × 26열(A~Z) 그리드다.",
-    "사용자 지시에 따라 바꿔야 할 셀만 changes 배열로 제안한다.",
-    "row는 0부터 시작하는 행 인덱스, col은 0부터 시작하는 열 인덱스(A=0)다.",
-    "바뀌지 않는 셀은 넣지 마라. 값만 제안하고 서식은 건드리지 않는다.",
-    // 모델이 한 셀 값을 글자 단위로 쪼개 여러 셀에 흩뿌리는 오해를 막는다
-    '사용자가 한 셀에 넣을 값을 주면 그 값을 통째로 그 셀 하나에 넣어라. 값을 글자 단위로 쪼개 여러 셀·행에 나누지 마라. 여러 셀에 나눠 넣는 것은 사용자가 "각 행에", "한 글자씩", 목록 등으로 명시했을 때만 한다.',
-    "지시에 셀·범위 위치가 불명확하면 활성 셀 하나만 바꾼다.",
-    scope,
-    `현재 선택: ${context.selection}, 활성 셀: ${context.activeCell}.`,
-    cells ? `값이 있는 셀: ${cells}` : "값이 있는 셀이 없다(빈 시트).",
-  ].join("\n");
 }
 
 function errorLine(kind: AiErrorKind): string {
@@ -113,7 +94,7 @@ export async function POST(request: Request): Promise<Response> {
         messages: [
           {
             role: "system",
-            content: systemPrompt(body.context, body.targetLabel),
+            content: buildSystemPrompt(body.context, body.targetLabel),
           },
           { role: "user", content: body.prompt },
         ],
