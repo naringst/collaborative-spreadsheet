@@ -135,7 +135,7 @@ export const SheetGrid = memo(function SheetGrid({
       ref={containerRef}
       // 시트는 라이트 팔레트 고정(셀 bg-white) — OS 다크 모드의 밝은 전역 글자색이
       // 흰 셀 위에 얹히지 않도록 검정으로 못박는다
-      className="relative h-full overflow-auto text-gray-900"
+      className="bg-surface text-ink relative h-full overflow-auto"
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={drag.move}
@@ -150,14 +150,14 @@ export const SheetGrid = memo(function SheetGrid({
           gridAutoRows: `${CELL_H}px`,
         }}
       >
-        <div className="sticky top-0 left-0 z-30 border-r border-b border-gray-300 bg-gray-100" />
+        <div className="border-line bg-surface-2 sticky top-0 left-0 z-30 border-r border-b" />
         {COLS.map((col) => (
           <div
             key={col}
-            className={`sticky top-0 z-20 border-r border-b border-gray-300 text-center text-xs leading-7 ${
+            className={`border-line sticky top-0 z-20 border-r border-b text-center text-[11px] leading-[26px] font-medium ${
               col >= norm.left && col <= norm.right
-                ? "bg-blue-100"
-                : "bg-gray-50"
+                ? "bg-accent-soft text-accent"
+                : "bg-surface-2 text-ink-2"
             }`}
           >
             {columnLabel(col)}
@@ -166,10 +166,10 @@ export const SheetGrid = memo(function SheetGrid({
         {ROWS.map((row) => (
           <div key={row} className="contents">
             <div
-              className={`sticky left-0 z-10 border-r border-b border-gray-300 text-center text-xs leading-7 ${
+              className={`border-line sticky left-0 z-10 border-r border-b text-center text-[11px] leading-[26px] font-medium tabular-nums ${
                 row >= norm.top && row <= norm.bottom
-                  ? "bg-blue-100"
-                  : "bg-gray-50"
+                  ? "bg-accent-soft text-accent"
+                  : "bg-surface-2 text-ink-2"
               }`}
             >
               {row + 1}
@@ -190,7 +190,7 @@ export const SheetGrid = memo(function SheetGrid({
 
       {!isSingleCell && (
         <div
-          className="pointer-events-none absolute z-[5] border border-blue-500"
+          className="border-accent pointer-events-none absolute z-[5] border"
           style={cellRect(norm.top, norm.left, norm.bottom, norm.right)}
         />
       )}

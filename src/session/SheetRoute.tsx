@@ -25,8 +25,8 @@ function SheetGate({
   if (!exists) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2">
-        <p className="text-sm text-gray-600">시트를 찾을 수 없습니다.</p>
-        <Link href="/" className="text-sm text-blue-600 hover:underline">
+        <p className="text-ink-2 text-[13px]">시트를 찾을 수 없습니다.</p>
+        <Link href="/" className="text-accent text-[13px] hover:underline">
           시트 목록으로 돌아가기
         </Link>
       </div>
@@ -43,7 +43,7 @@ function SheetGate({
 export function SheetRoute({ sheetId }: { sheetId: string }) {
   const session = useSheetListSession();
   return (
-    <div className="h-dvh bg-white text-gray-900">
+    <div className="bg-surface text-ink h-full">
       {session.status === "loading" ? (
         // 목록 로드 전에는 존재 여부를 판정할 수 없다 (S6 깜빡임 방지와 동일 원칙)
         <CenteredNotice>시트를 불러오는 중…</CenteredNotice>

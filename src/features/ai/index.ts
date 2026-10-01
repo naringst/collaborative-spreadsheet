@@ -9,6 +9,9 @@
  */
 export {
   canApply,
+  aiErrorMessage,
+  AiError,
+  type AiErrorKind,
   type ProposalCell,
   type ProposalStatus,
 } from "./model/proposal";
@@ -16,6 +19,7 @@ export {
   PROPOSAL_JSON_SCHEMA,
   parseProposalItem,
 } from "./model/proposal-schema";
+export { createChangesExtractor } from "./model/stream-extract";
 export { buildContext, type AiContext } from "./model/context";
 export {
   createProposalStore,
@@ -23,5 +27,6 @@ export {
   type ProposalSession,
   type ProposalStore,
 } from "./store/proposal-store";
+export { createOpenRouterSource } from "./store/openrouter-source";
 export { AiPanel } from "./ui/AiPanel";
 export { AiTargetOverlay } from "./ui/AiTargetOverlay";

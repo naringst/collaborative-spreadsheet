@@ -15,8 +15,8 @@ import {
   type Presence,
 } from "@/features/collab";
 import {
+  createOpenRouterSource,
   createProposalStore,
-  type ProposalSource,
   type ProposalStore,
 } from "@/features/ai";
 import {
@@ -38,19 +38,9 @@ export type SheetSessionValue =
       storageWarning: boolean;
     };
 
-// 묶음 2에서 OpenRouter 스트리밍 클라이언트로 교체된다. 지금은 활성 셀에
-// 프롬프트를 넣어 검토·적용 경로를 확인하는 데모 소스다.
-const mockSource: ProposalSource = async ({ prompt, context }, onItem) => {
-  const match = /^([A-Z])(\d+)$/.exec(context.activeCell);
-  if (!match) return;
-  const [, colLetter, rowDigits] = match;
-  if (!colLetter || !rowDigits) return;
-  onItem({
-    col: colLetter.charCodeAt(0) - 65,
-    row: Number(rowDigits) - 1,
-    value: `[AI] ${prompt}`,
-  });
-};
+// Route Handler(/api/ai/propose) 뒤의 OpenRouter에 붙는 실제 소스. 요청마다
+// 상태가 없어 모듈 수준에서 한 번만 만든다.
+const proposalSource = createOpenRouterSource();
 
 const SheetSessionContext = createContext<SheetSessionValue | null>(null);
 
@@ -77,7 +67,7 @@ export function SheetSessionProvider({
     const proposalStore = createProposalStore({
       store,
       undo,
-      source: mockSource,
+      source: proposalSource,
     });
     const persistence = createPersistence(`sheet-${sheetId}`, doc);
 

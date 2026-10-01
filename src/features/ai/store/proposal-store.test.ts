@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import type { CellAddress, CellRange, GridCursor } from "@/features/sheet";
 import { createSheetStore, createSheetUndo } from "@/features/sheet";
-import { canApply } from "../model/proposal";
+import { AiError, canApply } from "../model/proposal";
 import { createProposalStore, type ProposalSource } from "./proposal-store";
 
 const A1: CellAddress = { row: 0, col: 0 };
@@ -44,6 +44,182 @@ function deferredSource() {
     finish: () => resolveFn(),
   };
 }
+
+/**
+ * 완료·실패를 외부에서 제어하고, signal·입력을 관찰하는 source.
+ * emit으로 onItem을 흘리고, resolve로 완료, reject(err)로 실패시킨다.
+ */
+function controllableSource() {
+  let resolveFn: () => void = () => {};
+  let rejectFn: (err: unknown) => void = () => {};
+  let emit: (raw: unknown) => void = () => {};
+  let signal: AbortSignal | null = null;
+  let input: {
+    prompt: string;
+    targetLabel: string | null;
+  } | null = null;
+  const source: ProposalSource = (recvInput, onItem, recvSignal) => {
+    emit = onItem;
+    signal = recvSignal;
+    input = { prompt: recvInput.prompt, targetLabel: recvInput.targetLabel };
+    return new Promise<void>((resolve, reject) => {
+      resolveFn = resolve;
+      rejectFn = reject;
+    });
+  };
+  return {
+    source,
+    emit: (raw: unknown) => emit(raw),
+    resolve: () => resolveFn(),
+    reject: (err: unknown) => rejectFn(err),
+    get signal() {
+      return signal;
+    },
+    get input() {
+      return input;
+    },
+  };
+}
+
+/** 마이크로태스크 큐를 비워 Promise 콜백이 실행되게 한다 */
+async function flush() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+describe("A4/D10 proposal-store — 취소", () => {
+  it("cancel하면 status=cancelled, 받은 cells는 유지, apply 무효, signal aborted", async () => {
+    const ctl = controllableSource();
+    const { store, proposals } = setup(ctl.source);
+    proposals.start({ prompt: "x", targetRange: null, cursor: singleCursor });
+    ctl.emit({ row: 0, col: 0, value: "a" });
+
+    proposals.cancel();
+
+    const session = proposals.getSession();
+    expect(session?.status).toBe("cancelled");
+    expect(session?.cells).toHaveLength(1);
+    expect(session?.cells[0]?.proposedValue).toBe("a");
+    expect(canApply(session?.status ?? "cancelled")).toBe(false);
+    expect(ctl.signal?.aborted).toBe(true);
+
+    proposals.apply();
+    expect(store.getCellValue(A1)).toBe("");
+    // apply해도 세션이 사라지거나 반영되지 않는다
+    expect(proposals.getSession()?.status).toBe("cancelled");
+  });
+});
+
+describe("A6 proposal-store — 실패 분류", () => {
+  it("AiError('rate-limit')로 reject하면 status=error, error=rate-limit, 부분 cells 유지, apply 무효", async () => {
+    const ctl = controllableSource();
+    const { store, proposals } = setup(ctl.source);
+    proposals.start({ prompt: "x", targetRange: null, cursor: singleCursor });
+    ctl.emit({ row: 0, col: 0, value: "a" });
+
+    ctl.reject(new AiError("rate-limit"));
+    await flush();
+
+    const session = proposals.getSession();
+    expect(session?.status).toBe("error");
+    expect(session?.error).toBe("rate-limit");
+    expect(session?.cells).toHaveLength(1);
+
+    proposals.apply();
+    expect(store.getCellValue(A1)).toBe("");
+  });
+
+  it("일반 Error로 reject하면 error는 network로 분류된다", async () => {
+    const ctl = controllableSource();
+    const { proposals } = setup(ctl.source);
+    proposals.start({ prompt: "x", targetRange: null, cursor: singleCursor });
+
+    ctl.reject(new Error("boom"));
+    await flush();
+
+    const session = proposals.getSession();
+    expect(session?.status).toBe("error");
+    expect(session?.error).toBe("network");
+  });
+});
+
+describe("A6 proposal-store — retry", () => {
+  it("cancel 후 retry하면 같은 입력으로 새 세션이 generating으로 시작하고 cells가 초기화된다", async () => {
+    const ctl = controllableSource();
+    const { proposals } = setup(ctl.source);
+    proposals.start({
+      prompt: "fill it",
+      targetRange: null,
+      cursor: singleCursor,
+    });
+    ctl.emit({ row: 0, col: 0, value: "a" });
+    proposals.cancel();
+    expect(proposals.getSession()?.status).toBe("cancelled");
+
+    const firstPrompt = ctl.input?.prompt;
+    proposals.retry();
+
+    const session = proposals.getSession();
+    expect(session?.status).toBe("generating");
+    expect(session?.cells).toHaveLength(0);
+    expect(ctl.input?.prompt).toBe(firstPrompt);
+    expect(ctl.input?.prompt).toBe("fill it");
+  });
+
+  it("실패 후 retry하면 generating으로 복귀한다", async () => {
+    const ctl = controllableSource();
+    const { proposals } = setup(ctl.source);
+    proposals.start({ prompt: "x", targetRange: null, cursor: singleCursor });
+    ctl.reject(new AiError("server"));
+    await flush();
+    expect(proposals.getSession()?.status).toBe("error");
+
+    proposals.retry();
+    expect(proposals.getSession()?.status).toBe("generating");
+    expect(proposals.getSession()?.error).toBeNull();
+  });
+});
+
+describe("A4 proposal-store — 요청 교체", () => {
+  it("생성 중 다시 start하면 이전 signal이 aborted되고, 이전 요청의 늦은 reject가 새 세션을 덮어쓰지 않는다", async () => {
+    let call = 0;
+    const first = controllableSource();
+    const second = controllableSource();
+    const source: ProposalSource = (input, onItem, signal) => {
+      call += 1;
+      return call === 1
+        ? first.source(input, onItem, signal)
+        : second.source(input, onItem, signal);
+    };
+    const { proposals } = setup(source);
+
+    proposals.start({
+      prompt: "first",
+      targetRange: null,
+      cursor: singleCursor,
+    });
+    proposals.start({
+      prompt: "second",
+      targetRange: null,
+      cursor: singleCursor,
+    });
+
+    expect(first.signal?.aborted).toBe(true);
+    expect(proposals.getSession()?.status).toBe("generating");
+
+    // 이전 요청이 뒤늦게 실패해도 새 세션(generating)을 덮지 않는다
+    first.reject(new AiError("timeout"));
+    await flush();
+    expect(proposals.getSession()?.status).toBe("generating");
+    expect(proposals.getSession()?.error).toBeNull();
+
+    // 늦은 onItem도 새 세션에 끼어들지 않는다
+    first.emit({ row: 5, col: 5, value: "late" });
+    await flush();
+    expect(proposals.getSession()?.cells).toHaveLength(0);
+  });
+});
 
 describe("A3/A4 proposal-store — 생성·누적·완료", () => {
   it("start 후 완료되면 status=complete이고 cells가 누적된다", async () => {

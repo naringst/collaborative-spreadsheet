@@ -50,7 +50,7 @@ export function CellEditor({
     <>
       {editing && remoteConflict && (
         <div
-          className="pointer-events-none absolute z-[7] rounded bg-amber-100 px-1.5 py-0.5 text-xs whitespace-nowrap text-amber-900 shadow"
+          className="pointer-events-none absolute z-[7] rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] whitespace-nowrap text-amber-900 shadow-sm"
           style={{ left: rect.left, top: rect.top - 24 }}
         >
           다른 참여자가 이 셀을 변경했습니다
@@ -70,7 +70,7 @@ export function CellEditor({
         }}
         onInput={fitWidthToContent}
         onPointerDown={(e) => e.stopPropagation()}
-        className={`absolute z-[6] field-sizing-content border-2 border-blue-600 bg-white px-1 text-sm outline-none ${
+        className={`border-accent bg-surface text-ink absolute z-[6] field-sizing-content border-2 px-1 text-[13px] outline-none ${
           editing ? "" : "pointer-events-none opacity-0"
         }`}
         style={{

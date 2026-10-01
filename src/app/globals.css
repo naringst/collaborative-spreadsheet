@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
+/* 디자인 토큰 — Notion/Linear 계열의 중립 팔레트. 시트 화면은 라이트 고정이므로
+   다크 변형을 두지 않는다 (SheetScreen 주석 참고) */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1f1f1e;
 }
 
 @theme inline {
@@ -10,13 +12,21 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* 텍스트 */
+  --color-ink: #1f1f1e;
+  --color-ink-2: #6b6b68;
+  --color-ink-3: #9d9d9a;
+  /* 면 */
+  --color-surface: #ffffff;
+  --color-surface-2: #f7f7f6;
+  --color-surface-3: #efefed;
+  /* 선 */
+  --color-line: #e6e6e3;
+  --color-line-2: #d2d2ce;
+  /* 강조 */
+  --color-accent: #2f6fed;
+  --color-accent-soft: #e8f0fe;
 }
 
 body {

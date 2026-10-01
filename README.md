@@ -11,6 +11,23 @@ pnpm install
 pnpm dev
 ```
 
+### AI 키 설정 (R1)
+
+AI 편집은 [OpenRouter](https://openrouter.ai)를 통해 실제 LLM에 연결합니다. 키는 서버(Route Handler)에서만 읽으므로 브라우저에 노출되지 않습니다.
+
+1. OpenRouter에서 API 키를 만들고 **선불 크레딧을 소액($5~10) 충전**합니다. 충전액이 지출 상한이 되고, 초과하면 요청이 402로 거절되며 패널에 "사용 한도 초과"로 안내됩니다 (A7/D11).
+2. `.env.example`를 `.env.local`로 복사하고 키를 채웁니다.
+
+```bash
+cp .env.example .env.local
+# OPENROUTER_API_KEY=sk-or-... 를 채운다
+```
+
+| 환경변수             | 필수 | 설명                                                              |
+| -------------------- | ---- | ----------------------------------------------------------------- |
+| `OPENROUTER_API_KEY` | 예   | OpenRouter API 키                                                 |
+| `OPENROUTER_MODEL`   | 아니오 | 모델 override. 기본값은 `openai/gpt-4o-mini-2024-07-18` (버전 고정) |
+
 | 스크립트                    | 설명                            |
 | --------------------------- | ------------------------------- |
 | `pnpm dev`                  | 개발 서버                       |
@@ -145,9 +162,12 @@ Yjs에는 BroadcastChannel 전용 provider가 없어 직접 작성합니다(`fea
 
 ### AI 편집 (3단계): 하위 묶음 분할과 제안 상태 위치
 
-AI 편집은 A1~A7·X1~X3으로 커서 3개 하위 묶음으로 나눠 진행합니다: ①제안 생성·검토·적용(단일 탭, 현재 구현) → ②스트리밍·취소·실패(OpenRouter Route Handler) → ③멀티탭 충돌·표시(X1~X3). 가장 큰 위험(제안 상태 모델·배치 적용·undo·스키마)을 LLM 없이 먼저 고정하기 위한 순서입니다.
+AI 편집은 A1~A7·X1~X3으로 커서 3개 하위 묶음으로 나눠 진행합니다: ①제안 생성·검토·적용(단일 탭, mock) → ②스트리밍·취소·실패(OpenRouter Route Handler, 현재 구현) → ③멀티탭 충돌·표시(X1~X3, 예정). 가장 큰 위험(제안 상태 모델·배치 적용·undo·스키마)을 LLM 없이 먼저 고정하기 위한 순서입니다.
 
-- **제안 소스를 함수로 주입** (`ProposalSource`): 묶음 1은 mock, 묶음 2에서 실제 스트리밍 클라이언트로 교체한다. store·UI 시그니처를 바꾸지 않고 LLM 없이 검토·적용 경로를 완결 검증할 수 있다(provider 경계 예외).
+- **제안 소스를 함수로 주입** (`ProposalSource`): 묶음 1은 mock, 묶음 2에서 실제 스트리밍 클라이언트(`createOpenRouterSource`)로 교체했다. store·UI 시그니처를 거의 바꾸지 않고(요청 범위 라벨 `targetLabel`만 추가) LLM 없이 검토·적용 경로를 먼저 완결 검증할 수 있었다(provider 경계 예외).
+- **LLM 연결은 raw `fetch` + Route Handler**(`/api/ai/propose`): AI SDK 등 새 의존성 대신 OpenRouter(OpenAI 호환)를 직접 호출한다. 키 취급(서버 env만), 실패 분류(402/429/5xx/네트워크/타임아웃), 클라이언트 취소의 업스트림 전파(`request.signal`→업스트림 `fetch`, A4)를 전부 직접 통제하기 위해서다. 실제 네트워크 동기화로 확장할 때 바꿀 경계가 이 라우트 하나로 모인다(R4). `require_parameters:true`·`data_collection:"deny"`로 구조화 출력 지원 업체로만 라우팅한다(D11).
+- **완성된 셀 제안을 하나씩 NDJSON으로 중계**: 구조화 출력은 `{"changes":[...]}` 하나를 토큰 단위로 스트림하므로, 라우트에서 배열 안 객체가 닫힐 때마다(`createChangesExtractor`, 순수) 떼어 NDJSON `item` 라인으로 보낸다. 패널이 "생성되는 대로 하나씩" 쌓이고(A4), 클라이언트는 라인만 읽어 `parseProposalItem`으로 최종 검증한다(검증 로직 단일화).
+- **취소·실패는 세션 상태로 표면화**: `cancelled`(사용자 취소)·`error`(실패, `AiErrorKind` 포함) 상태를 두되 둘 다 적용 불가(`canApply`는 `complete`만). 중단·실패해도 그때까지 받은 부분 제안은 패널에 남아 확인만 가능하고(A6/D10), 같은 입력으로 재시도한다(`retry`).
 - **제안·base 스냅샷은 AI feature 로컬 상태**(Y.Doc에 넣지 않음): 적용 전 제안은 확정되지 않은 개인 초안이라 동기화 대상이 아니다. `doc.transact`를 타지 않으므로 다른 탭에 새지 않는다(X2 근거). 요청 시점의 base를 고정해 두면 묶음 3의 충돌 비교(base≠현재, X1) 재료가 확보된다.
 - **적용은 배치 op `applyCellValues`로 한 transact**(A5): UndoManager가 undo 1단계로 캡처한다. 적용 앞뒤로 `stopCapturing()`을 호출해 직전·직후 입력과 합쳐지지 않게 한다. `stopCapturing`은 store가 아니라 proposal-store가 호출한다 — "store는 전송·저장(undo 포함)을 모른다"는 경계를 유지하기 위해 store는 순수 transact만 노출한다.
 - AI는 **값만 제안**한다(서식은 컨텍스트로 읽어 보내되 제안 대상 아님). 컨텍스트(D9)는 값 있는 셀의 sparse 목록 + 선택 범위 + 활성 셀이다.

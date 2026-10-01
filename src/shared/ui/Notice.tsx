@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 /** 로드 대기 등 중앙 안내 문구 */
 export function CenteredNotice({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-full items-center justify-center text-sm text-gray-500">
+    <div className="text-ink-3 flex h-full items-center justify-center text-[13px]">
       {children}
     </div>
   );

@@ -28,7 +28,7 @@ export function AiTargetOverlay({
         return (
           <div
             key={cellKey(cell.addr)}
-            className="pointer-events-none absolute z-[4] border-2 border-dashed border-blue-500 bg-blue-500/10"
+            className="border-accent bg-accent/10 pointer-events-none absolute z-[4] border-2 border-dashed"
             style={rect}
           />
         );

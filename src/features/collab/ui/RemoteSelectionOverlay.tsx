@@ -57,7 +57,11 @@ export function RemoteSelectionOverlay({ presence }: { presence: Presence }) {
           >
             <div
               className="absolute border"
-              style={{ ...rangeBox, borderColor: p.color }}
+              style={{
+                ...rangeBox,
+                borderColor: p.color,
+                backgroundColor: `color-mix(in srgb, ${p.color} 6%, transparent)`,
+              }}
             />
             <div
               className="absolute"
@@ -67,7 +71,7 @@ export function RemoteSelectionOverlay({ presence }: { presence: Presence }) {
               }}
             />
             <div
-              className="absolute rounded-sm px-1 text-[10px] leading-4 whitespace-nowrap text-white"
+              className="absolute rounded-[3px_3px_3px_0] px-1.5 text-[10px] leading-4 font-medium whitespace-nowrap text-white"
               style={{
                 left: activeBox.left,
                 // 0행은 위 공간이 sticky 열 헤더에 가리므로 셀 아래에 표시한다

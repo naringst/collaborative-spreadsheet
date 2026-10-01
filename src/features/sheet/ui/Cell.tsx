@@ -43,11 +43,18 @@ export const Cell = memo(function Cell({
         scrollMarginLeft: HEADER_W,
         textDecorationLine: decoration || undefined,
       }}
-      className={`overflow-hidden border-r border-b border-gray-200 px-1.5 py-0.5 text-sm whitespace-nowrap ${
-        isSelected && !isActive ? "bg-blue-50" : "bg-white"
-      } ${isActive ? "shadow-[inset_0_0_0_2px_theme(colors.blue.600)]" : ""} ${
-        isNumericValue(value) ? "text-right" : "text-left"
-      } ${formats.bold ? "font-bold" : ""} ${formats.italic ? "italic" : ""}`}
+      className={`border-line relative overflow-hidden border-r border-b px-1.5 text-[13px] leading-[25px] whitespace-nowrap ${
+        isSelected && !isActive ? "bg-accent/7" : "bg-surface"
+      } ${
+        // 활성 셀: 링 + 우하단 채우기 핸들 (핸들은 장식 — 드래그 채우기는 명세 밖)
+        isActive
+          ? "after:border-surface after:bg-accent z-[1] shadow-[inset_0_0_0_2px_var(--color-accent)] after:absolute after:-right-px after:-bottom-px after:h-1.5 after:w-1.5 after:border after:content-['']"
+          : ""
+      } ${
+        isNumericValue(value)
+          ? "text-right font-mono text-xs tabular-nums"
+          : "text-left"
+      } ${formats.bold ? "font-semibold" : ""} ${formats.italic ? "italic" : ""}`}
     >
       {value}
     </div>

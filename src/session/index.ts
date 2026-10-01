@@ -14,4 +14,5 @@ export {
   useSheetListSession,
 } from "./SheetListSession";
 export { SheetListScreen } from "./SheetListScreen";
+export { SheetListSidebar } from "./SheetListSidebar";
 export { SheetRoute } from "./SheetRoute";

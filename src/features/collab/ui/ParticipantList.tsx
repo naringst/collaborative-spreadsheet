@@ -3,9 +3,12 @@
 import { useSyncExternalStore } from "react";
 import type { Presence } from "../presence";
 
-/** 접속 중 참여자 목록. 내 이름은 바로 수정할 수 있다 (C4). */
 const NO_PARTICIPANTS: never[] = [];
 
+/**
+ * 접속 중 참여자를 겹친 아바타(이름 첫 글자)로 보여 준다 (C4).
+ * 전체 이름은 hover 툴팁으로, 나는 우하단 점으로 구분한다.
+ */
 export function ParticipantList({ presence }: { presence: Presence }) {
   const participants = useSyncExternalStore(
     presence.subscribe,
@@ -14,26 +17,20 @@ export function ParticipantList({ presence }: { presence: Presence }) {
   );
 
   return (
-    <ul className="flex items-center gap-3 px-2 py-1 text-sm">
+    <ul className="flex items-center" aria-label="참여자">
       {participants.map((p) => (
-        <li key={p.clientId} className="flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: p.color }}
-          />
-          {p.isLocal ? (
-            <>
-              <input
-                className="w-24 rounded border border-transparent px-1 hover:border-gray-300 focus:border-gray-400 focus:outline-none"
-                defaultValue={p.name}
-                onChange={(e) => presence.setName(e.target.value)}
-                aria-label="내 이름"
-              />
-              <span className="text-gray-500">(나)</span>
-            </>
-          ) : (
-            <span>{p.name}</span>
+        <li
+          key={p.clientId}
+          className="border-surface relative -ml-1.5 flex h-6.5 w-6.5 items-center justify-center rounded-full border-2 text-[10px] font-semibold text-white first:ml-0"
+          style={{ backgroundColor: p.color }}
+          title={p.isLocal ? `${p.name} (나)` : p.name}
+        >
+          {p.name.slice(0, 1)}
+          {p.isLocal && (
+            <span
+              aria-hidden
+              className="border-surface bg-ink absolute -right-px -bottom-px h-2 w-2 rounded-full border-2"
+            />
           )}
         </li>
       ))}

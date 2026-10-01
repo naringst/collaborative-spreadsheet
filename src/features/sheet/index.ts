@@ -31,4 +31,4 @@ export {
 export { createSheetUndo, type SheetUndo } from "./store/undo";
 export { SheetGrid, type GridCursor } from "./ui/Grid";
 export { cellRect } from "./ui/metrics";
-export { SheetToolbar } from "./ui/Toolbar";
+export { SheetToolbar, ToolbarSeparator } from "./ui/Toolbar";
