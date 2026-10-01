@@ -28,8 +28,7 @@
   /* 사이드바 — 행·열 헤더와 같은 surface-2. 글자·호버는
      사이드바 전용 토큰을 거쳐 본문 토큰을 가리킨다 (색을 바꿀 때 한 곳만 손대도록) */
   --color-sidebar: var(--color-surface-2);
-  --color-sidebar-2: var(--color-surface); /* 활성 행 카드 */
-  --color-sidebar-hover: #e3e7ed; /* 사이드바 면보다 확실히 진한 호버 */
+  /* 호버·활성 행은 별도 색 대신 ink를 5%·8%로 얹는다 — 바탕색을 바꿔도 같은 결로 어두워진다 */
   --color-sidebar-line: var(--color-line);
   --color-sidebar-fg: var(--color-ink);
   --color-sidebar-fg-2: var(--color-ink-2);

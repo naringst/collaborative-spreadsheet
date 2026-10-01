@@ -87,7 +87,7 @@ export function SheetList({
         )}
         <button
           type="button"
-          className="text-sidebar-fg-2 hover:bg-sidebar-hover hover:text-sidebar-fg grid h-7 w-7 shrink-0 place-items-center rounded-md"
+          className="text-sidebar-fg-2 hover:bg-ink/5 hover:text-sidebar-fg grid h-7 w-7 shrink-0 place-items-center rounded-md"
           onClick={onToggleCollapse}
           aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
           aria-expanded={!collapsed}
@@ -105,7 +105,7 @@ export function SheetList({
         {!collapsed && <span>시트</span>}
         <button
           type="button"
-          className="text-sidebar-fg-2 hover:bg-sidebar-hover hover:text-sidebar-fg grid h-6 w-6 place-items-center rounded-md text-[15px] leading-none"
+          className="text-sidebar-fg-2 hover:bg-ink/5 hover:text-sidebar-fg grid h-6 w-6 place-items-center rounded-md text-[15px] leading-none"
           onClick={onCreate}
           aria-label="새 시트"
           title="새 시트"
@@ -125,12 +125,13 @@ export function SheetList({
           <ul className="flex flex-col gap-0.5">
             {sheets.map((sheet) => {
               const active = sheet.id === activeSheetId;
-              const rowClass = `flex h-7 items-center gap-2 rounded-md text-[13px] ${
+              // 글자색은 전환 없이 바로 바꾼다 — 활성 표시가 배경보다 늦게 따라오면 어긋나 보인다
+              const rowClass = `flex h-7 items-center gap-2 rounded-md text-[13px] transition-[background-color] ${
                 collapsed ? "w-8 justify-center" : "px-2"
               } ${
                 active
-                  ? "bg-sidebar-2 font-medium text-sidebar-fg shadow-[0_1px_2px_rgba(0,0,0,0.06),0_0_0_1px_var(--color-sidebar-line)]"
-                  : "text-sidebar-fg-2 hover:bg-sidebar-hover hover:text-sidebar-fg"
+                  ? "bg-accent-soft font-medium text-accent"
+                  : "text-sidebar-fg-2 hover:bg-ink/5 hover:text-sidebar-fg"
               }`;
               if (renamingId === sheet.id && !collapsed) {
                 return (
@@ -169,6 +170,11 @@ export function SheetList({
                     aria-current={active ? "page" : undefined}
                     className={rowClass}
                     title={collapsed ? sheet.name : "더블클릭하여 이름 변경"}
+                    // 이미 열린 시트를 다시 클릭하면 같은 경로로 재탐색돼 세션이 다시
+                    // 마운트된다 — 아무 일도 하지 않는다 (더블클릭 이름 변경은 그대로)
+                    onClick={(e) => {
+                      if (active) e.preventDefault();
+                    }}
                     onDoubleClick={(e) => {
                       if (collapsed) return;
                       e.preventDefault();
