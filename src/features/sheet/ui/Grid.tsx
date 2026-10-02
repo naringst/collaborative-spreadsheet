@@ -79,15 +79,13 @@ export const SheetGrid = memo(function SheetGrid({
   onPresenceChange,
 }: SheetGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const composingRef = useRef(false);
 
   const selection = useSelection();
-  const editingApi = useEditing(store, inputRef);
-  const onKeyDown = useGridKeyboard(store, selection, editingApi, undo);
+  const editor = useEditing(store);
+  const onKeyDown = useGridKeyboard(store, selection, editor, undo);
 
   const { range, active, selectCell, selectRange, extendTo } = selection;
-  const { editing, remoteConflict, start, commit } = editingApi;
+  const { editing, start, commit, focus } = editor;
   const drag = useDragSelection(containerRef, extendTo);
 
   // 내 선택·편집 위치를 awareness로 복사한다 (C5). 입력 중 텍스트는 보내지 않는다 (C2)
@@ -105,8 +103,8 @@ export const SheetGrid = memo(function SheetGrid({
 
   // 키보드 입력(문자·조합 포함)이 항상 CellEditor의 input으로 들어가게 한다
   useEffect(() => {
-    inputRef.current?.focus({ preventScroll: true });
-  }, []);
+    focus();
+  }, [focus]);
 
   // 활성 셀이 화면 밖이면 보이도록 스크롤 (S3). sticky 헤더는 scroll-margin으로 보정
   useEffect(() => {
@@ -119,7 +117,7 @@ export const SheetGrid = memo(function SheetGrid({
   // focus는 끝 셀. Shift+클릭은 기존 anchor를 두고 끝만 옮긴다
   const onHeaderPointerDown = (e: PointerEvent, hit: HeaderHit) => {
     e.preventDefault();
-    inputRef.current?.focus({ preventScroll: true });
+    editor.focus();
     if (editing) commit();
     const last = { row: GRID_ROWS - 1, col: GRID_COLS - 1 };
     if (hit.kind === "all") {
@@ -152,17 +150,11 @@ export const SheetGrid = memo(function SheetGrid({
     // input의 포커스를 뺏지 않는다 — 포커스가 떠나면 IME 조합·키 입력이 끊긴다.
     // 다른 요소(툴바 등)에 포커스가 가 있던 경우도 셀 클릭으로 되찾는다.
     e.preventDefault();
-    inputRef.current?.focus({ preventScroll: true });
+    editor.focus();
 
     if (editing) {
       if (isSameCell(editing.addr, addr)) return; // 편집 중 자신 클릭은 유지
-      if (composingRef.current) {
-        // blur가 진행 중인 IME 조합을 확정시켜 input.value에 반영한다 —
-        // 조합 중간 상태로 커밋되거나 잔여 글자가 되살아나는 것을 막는다
-        inputRef.current?.blur();
-        inputRef.current?.focus({ preventScroll: true });
-        composingRef.current = false;
-      }
+      editor.abortComposition(); // 조합 중간 상태로 커밋되지 않게 먼저 확정
       commit(); // 다른 셀 클릭 = 확정 (S2)
     }
     if (e.shiftKey) extendTo(addr);
@@ -248,14 +240,7 @@ export const SheetGrid = memo(function SheetGrid({
 
       {overlay}
 
-      <CellEditor
-        inputRef={inputRef}
-        composingRef={composingRef}
-        active={active}
-        editing={editing}
-        remoteConflict={remoteConflict}
-        start={start}
-      />
+      <CellEditor editor={editor} active={active} />
     </div>
   );
 });
