@@ -29,5 +29,7 @@ export {
   type ProposalStore,
 } from "./store/proposal-store";
 export { createOpenRouterSource } from "./store/openrouter-source";
+// 서버 전용 — Route Handler(app/api/ai/propose)에서만 호출한다
+export { createProposalResponse } from "./server/propose";
 export { AiPanel } from "./ui/AiPanel";
 export { AiTargetOverlay } from "./ui/AiTargetOverlay";
