@@ -1,6 +1,9 @@
 import { AiError, type AiErrorKind } from "../model/proposal";
 import type { ProposalSource } from "./proposal-store";
 
+/** 제안 스트림을 내려 주는 Route Handler 경로 */
+const PROPOSE_ROUTE = "/api/ai/propose";
+
 /** 라우트가 보내는 NDJSON 한 줄 (item: 셀 제안 / error: 실패 / done: 종료) */
 type StreamLine = { type?: string; item?: unknown; kind?: AiErrorKind };
 
@@ -38,7 +41,7 @@ export function createOpenRouterSource(): ProposalSource {
     // 1) 요청 — 로직은 라우트 뒤에 있고 여기선 POST만 한다
     let res: Response;
     try {
-      res = await fetch("/api/ai/propose", {
+      res = await fetch(PROPOSE_ROUTE, {
         method: "POST",
         signal,
         headers: { "Content-Type": "application/json" },
