@@ -1,7 +1,7 @@
 /**
  * sheet — 시트 데이터 모델과 편집
  *
- * - model/ : 셀 주소·범위·셀 타입 등 순수 로직 (React·브라우저 API 없음)
+ * - model/ : 셀 주소·범위·서식 어휘 등 순수 로직 (React·브라우저 API 없음)
  * - store/ : Y.Doc 안의 데이터 구조, 편집 연산(ops), UndoManager
  * - ui/    : Grid, Cell, Toolbar, 선택·키보드 처리
  *
@@ -14,9 +14,11 @@ export {
   cellKey,
   cellLabel,
   type CellAddress,
+} from "./model/cell";
+export {
   type CellAlign,
   type CellFormatName,
-} from "./model/cell";
+} from "./model/cell-format";
 export {
   normalizeRange,
   rangeContains,

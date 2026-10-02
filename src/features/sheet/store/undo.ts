@@ -1,5 +1,6 @@
 import * as Y from "yjs";
-import { parseCellKey, type CellAddress } from "../model/cell";
+import type { CellAddress } from "../model/cell";
+import { parseCellKey } from "./cell-keys";
 import { LOCAL_ORIGIN } from "./sheet-store";
 
 export interface SheetUndo {

@@ -10,11 +10,11 @@ import {
   defaultAlign,
   type CellAlign,
   type CellFormatName,
-} from "../model/cell";
+} from "../model/cell-format";
 import type { SheetStore } from "../store/sheet-store";
 import type { SheetUndo } from "../store/undo";
 import type { GridCursor } from "./Grid";
-import { useCellFormats, useCellStyle } from "./useCellFormats";
+import { useCellFormats, useCellStyle } from "./hooks/useCellFormats";
 
 const FORMAT_BUTTONS: Record<
   CellFormatName,

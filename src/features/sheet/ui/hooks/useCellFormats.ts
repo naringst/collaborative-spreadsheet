@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
-import type { CellAddress, CellAlign, CellFormatName } from "../model/cell";
-import type { SheetStore } from "../store/sheet-store";
+import type { CellAddress } from "../../model/cell";
+import type { CellAlign, CellFormatName } from "../../model/cell-format";
+import type { SheetStore } from "../../store/sheet-store";
 
 function useFormat(
   store: SheetStore,

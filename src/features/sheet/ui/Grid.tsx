@@ -21,10 +21,10 @@ import type { SheetUndo } from "../store/undo";
 import { Cell } from "./Cell";
 import { CellEditor } from "./CellEditor";
 import { CELL_H, CELL_W, HEADER_W, cellRect } from "./metrics";
-import { useDragSelection } from "./useDragSelection";
-import { useEditing } from "./useEditing";
-import { useGridKeyboard } from "./useGridKeyboard";
-import { useSelection } from "./useSelection";
+import { useDragSelection } from "./hooks/useDragSelection";
+import { useEditing } from "./hooks/useEditing";
+import { useGridKeyboard } from "./hooks/useGridKeyboard";
+import { useSelection } from "./hooks/useSelection";
 
 const ROWS = Array.from({ length: GRID_ROWS }, (_, i) => i);
 const COLS = Array.from({ length: GRID_COLS }, (_, i) => i);

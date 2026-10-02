@@ -5,8 +5,8 @@ import {
   useState,
   type RefObject,
 } from "react";
-import type { CellAddress } from "../model/cell";
-import type { SheetStore } from "../store/sheet-store";
+import type { CellAddress } from "../../model/cell";
+import type { SheetStore } from "../../store/sheet-store";
 
 /** replace: 바로 입력(기존 값 대체), append: Enter·F2·더블클릭(기존 값 이어서 편집) */
 export type EditMode = "replace" | "append";

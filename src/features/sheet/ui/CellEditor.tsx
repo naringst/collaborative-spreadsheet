@@ -1,7 +1,7 @@
 import { useEffect, type RefObject } from "react";
 import type { CellAddress } from "../model/cell";
 import { cellRect } from "./metrics";
-import type { EditMode, EditingState } from "./useEditing";
+import type { EditMode, EditingState } from "./hooks/useEditing";
 
 // Safari 등 field-sizing 미지원 브라우저에서는 JS로 input 너비를 내용에 맞춘다 (S7 편집 시 전체 표시)
 const supportsFieldSizing =

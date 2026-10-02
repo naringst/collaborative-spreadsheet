@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { moveWithinGrid, type CellAddress } from "../model/cell";
-import type { CellRange } from "../model/range";
+import { moveWithinGrid, type CellAddress } from "../../model/cell";
+import type { CellRange } from "../../model/range";
 
 const ORIGIN: CellAddress = { row: 0, col: 0 };
 

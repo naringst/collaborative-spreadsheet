@@ -1,16 +1,13 @@
 import * as Y from "yjs";
+import { cellKey, type CellAddress } from "../model/cell";
 import {
   CELL_FORMATS,
   DEFAULT_FONT_SIZE,
-  cellKey,
-  formatKey,
   isCellAlign,
-  parseCellKey,
-  styleKey,
-  type CellAddress,
   type CellAlign,
   type CellFormatName,
-} from "../model/cell";
+} from "../model/cell-format";
+import { formatKey, parseCellKey, styleKey } from "./cell-keys";
 import { cellsInRange, type CellRange } from "../model/range";
 
 export interface CellSnapshot {

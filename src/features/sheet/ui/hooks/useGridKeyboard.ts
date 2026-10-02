@@ -1,7 +1,7 @@
 import { useCallback, type KeyboardEvent } from "react";
-import type { CellFormatName } from "../model/cell";
-import type { SheetStore } from "../store/sheet-store";
-import type { SheetUndo } from "../store/undo";
+import type { CellFormatName } from "../../model/cell-format";
+import type { SheetStore } from "../../store/sheet-store";
+import type { SheetUndo } from "../../store/undo";
 import type { EditingApi } from "./useEditing";
 import type { SelectionApi } from "./useSelection";
 

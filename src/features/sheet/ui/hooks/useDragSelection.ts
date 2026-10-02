@@ -10,8 +10,8 @@ import {
   GRID_ROWS,
   moveWithinGrid,
   type CellAddress,
-} from "../model/cell";
-import { CELL_H, CELL_W, HEADER_H, HEADER_W } from "./metrics";
+} from "../../model/cell";
+import { CELL_H, CELL_W, HEADER_H, HEADER_W } from "../metrics";
 
 /** 드래그 자동 스크롤: 가장자리 이 거리 안이면 프레임당 이 픽셀만큼 스크롤 */
 const EDGE = 24;
