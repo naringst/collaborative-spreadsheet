@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { createCachedSnapshot } from "@/shared/lib/cached-snapshot";
 
 /** UndoManager 대상은 아니지만(목록은 undo 스코프 밖) 로컬 편집 표식으로 유지한다. */
 export const LIST_LOCAL_ORIGIN = Symbol("sheet-list-local");
@@ -57,14 +58,13 @@ export function createSheetListStore(doc: Y.Doc): SheetListStore {
     return list.sort((a, b) => a.createdAt - b.createdAt);
   }
 
-  // observe 하나로 캐시를 먼저 갱신한 뒤 구독자에게 알린다 — 구독자의 getSnapshot이
-  // 항상 최신 캐시를 읽도록 순서를 보장한다
-  let cached: readonly SheetMeta[] = buildList();
-  const listeners = new Set<() => void>();
-  sheets.observe(() => {
-    cached = buildList();
-    for (const listener of listeners) listener();
-  });
+  const list = createCachedSnapshot<readonly SheetMeta[]>(
+    buildList,
+    (rebuild) => {
+      sheets.observe(rebuild);
+      return () => sheets.unobserve(rebuild);
+    },
+  );
 
   return {
     createSheet(name = DEFAULT_SHEET_NAME) {
@@ -81,7 +81,7 @@ export function createSheetListStore(doc: Y.Doc): SheetListStore {
       if (
         trimmed === "" ||
         doc.isDestroyed ||
-        !cached.some((s) => s.id === id)
+        !list.get().some((s) => s.id === id)
       ) {
         return;
       }
@@ -90,17 +90,12 @@ export function createSheetListStore(doc: Y.Doc): SheetListStore {
       }, LIST_LOCAL_ORIGIN);
     },
     getSheet(id) {
-      return cached.find((s) => s.id === id);
+      return list.get().find((s) => s.id === id);
     },
     hasSheet(id) {
-      return cached.some((s) => s.id === id);
+      return list.get().some((s) => s.id === id);
     },
-    getSheets: () => cached,
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
+    getSheets: list.get,
+    subscribe: list.subscribe,
   };
 }

@@ -1,5 +1,6 @@
 import { Awareness, removeAwarenessStates } from "y-protocols/awareness";
 import type * as Y from "yjs";
+import { createCachedSnapshot } from "@/shared/lib/cached-snapshot";
 import { generateName, pickColor } from "./identity";
 import { createPeerLocks, type PeerLocks } from "./peer-locks";
 
@@ -50,7 +51,14 @@ export function createPresence(opts: {
   // change 핸들러는 역할별로 등록한다 — 색 충돌 해소가 목록 캐시 재계산보다 먼저
   const stopColorWatch = watchColorConflicts(awareness, doc.clientID);
   const stopPeerEviction = watchDeadPeers(awareness, locks);
-  const participants = trackParticipants(awareness, doc.clientID);
+  // 참여자 목록 캐시 — change 때만 재계산한 안정 참조 (useSyncExternalStore용)
+  const participants = createCachedSnapshot(
+    () => buildParticipants(awareness, doc.clientID),
+    (rebuild) => {
+      awareness.on("change", rebuild);
+      return () => awareness.off("change", rebuild);
+    },
+  );
 
   const stopLifecycle = bindPageLifecycle(awareness, doc.clientID);
   const stopKeepAlive = startKeepAlive(awareness, locks);
@@ -67,17 +75,15 @@ export function createPresence(opts: {
       awareness.setLocalStateField("aiTask", task);
     },
     getParticipants: participants.get,
-    subscribe(listener) {
-      awareness.on("change", listener);
-      return () => awareness.off("change", listener);
-    },
+    // 캐시를 거쳐 알림 — 구독자의 getSnapshot이 항상 갱신된 캐시를 읽는다
+    subscribe: participants.subscribe,
     awareness,
     destroy() {
       stopLifecycle();
       stopKeepAlive();
       stopColorWatch();
       stopPeerEviction();
-      participants.stop();
+      participants.destroy();
       removeAwarenessStates(awareness, [doc.clientID], "destroy");
       locks?.destroy();
       awareness.destroy();
@@ -93,19 +99,6 @@ function publishLocalIdentity(awareness: Awareness, ownClientId: number) {
     cursor: null,
     aiTask: null,
   });
-}
-
-/** 참여자 목록 캐시 — useSyncExternalStore용으로 change 때만 재계산한 안정 참조를 준다 */
-function trackParticipants(awareness: Awareness, ownClientId: number) {
-  let cached = buildParticipants(awareness, ownClientId);
-  const rebuild = () => {
-    cached = buildParticipants(awareness, ownClientId);
-  };
-  awareness.on("change", rebuild);
-  return {
-    get: () => cached,
-    stop: () => awareness.off("change", rebuild),
-  };
 }
 
 /**
