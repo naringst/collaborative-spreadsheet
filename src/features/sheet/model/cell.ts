@@ -10,8 +10,10 @@ export function cellKey(addr: CellAddress): string {
   return `${addr.row}:${addr.col}`;
 }
 
+const COLUMN_A = "A".charCodeAt(0);
+
 export function columnLabel(col: number): string {
-  return String.fromCharCode(65 + col);
+  return String.fromCharCode(COLUMN_A + col);
 }
 
 /** 셀 주소를 A1 표기로 (AI 컨텍스트·범위 칩) */

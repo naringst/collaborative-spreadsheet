@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import { cellRect, normalizeRange, type GridCursor } from "@/features/sheet";
 import { EMPTY_PARTICIPANTS, type Presence } from "../presence";
 import { isCellAddress } from "./payload-guards";
-import { PeerBadge } from "./PeerBadge";
+import { BADGE_LINE_H, PeerBadge } from "./PeerBadge";
 
 /** awareness cursor 페이로드의 구체 타입 — collab 코어는 이 모양을 모른다 */
 export type SheetCursor = GridCursor;
@@ -69,8 +69,8 @@ export function RemoteSelectionOverlay({ presence }: { presence: Presence }) {
               // 0행은 위 공간이 sticky 열 헤더에 가리므로 셀 아래에 표시한다
               top={
                 anchor.row === 0
-                  ? activeBox.top + activeBox.height + 16 * stackIndex
-                  : activeBox.top - 16 * (stackIndex + 1)
+                  ? activeBox.top + activeBox.height + BADGE_LINE_H * stackIndex
+                  : activeBox.top - BADGE_LINE_H * (stackIndex + 1)
               }
               color={p.color}
               label={`${p.name}${isEditing ? " · 입력 중" : ""}`}

@@ -6,6 +6,10 @@ import { createPeerLocks } from "./peer-locks";
 /** useSyncExternalStore의 빈/서버 스냅샷용 안정 참조 (매번 새 배열 금지) */
 export const EMPTY_PARTICIPANTS: Participant[] = [];
 
+// y-protocols의 30초 타임아웃보다 짧게 원격 lastUpdated를 갱신해 타임아웃 제거를
+// 무력화한다 (C6 P1). 30초보다 충분히 작아야 한다.
+const KEEP_ALIVE_INTERVAL_MS = 15_000;
+
 export interface Participant {
   clientId: number;
   name: string;
@@ -108,7 +112,7 @@ export function createPresence(opts: {
           const meta = awareness.meta.get(clientId);
           if (meta) meta.lastUpdated = now;
         }
-      }, 15_000)
+      }, KEEP_ALIVE_INTERVAL_MS)
     : null;
 
   return {

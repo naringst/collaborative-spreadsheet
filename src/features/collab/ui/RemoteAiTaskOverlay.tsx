@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import { cellRect, normalizeRange, type CellRange } from "@/features/sheet";
 import { EMPTY_PARTICIPANTS, type Presence } from "../presence";
 import { isCellAddress } from "./payload-guards";
-import { PeerBadge } from "./PeerBadge";
+import { BADGE_LINE_H, PeerBadge } from "./PeerBadge";
 
 /** awareness aiTask 페이로드의 구체 타입 — collab 코어는 이 모양을 모른다 (X2) */
 export interface AiTaskPayload {
@@ -65,7 +65,11 @@ export function RemoteAiTaskOverlay({ presence }: { presence: Presence }) {
             )}
             <PeerBadge
               left={box.left}
-              top={norm && norm.top > 0 ? box.top - 16 : box.top + box.height}
+              top={
+                norm && norm.top > 0
+                  ? box.top - BADGE_LINE_H
+                  : box.top + box.height
+              }
               color={p.color}
               label={label}
             />

@@ -1,6 +1,10 @@
 import { useSyncExternalStore } from "react";
 import type { CellAddress } from "../../model/cell";
-import type { CellAlign, CellFormatName } from "../../model/cell-format";
+import {
+  CELL_FORMAT,
+  type CellAlign,
+  type CellFormatName,
+} from "../../model/cell-format";
 import type { SheetStore } from "../../store/sheet-store";
 
 function useFormat(
@@ -19,10 +23,10 @@ function useFormat(
 export function useCellFormats(store: SheetStore, addr: CellAddress) {
   // 고정된 4회 호출이라 훅 순서가 항상 같다
   return {
-    bold: useFormat(store, addr, "bold"),
-    italic: useFormat(store, addr, "italic"),
-    underline: useFormat(store, addr, "underline"),
-    strike: useFormat(store, addr, "strike"),
+    bold: useFormat(store, addr, CELL_FORMAT.BOLD),
+    italic: useFormat(store, addr, CELL_FORMAT.ITALIC),
+    underline: useFormat(store, addr, CELL_FORMAT.UNDERLINE),
+    strike: useFormat(store, addr, CELL_FORMAT.STRIKE),
   };
 }
 

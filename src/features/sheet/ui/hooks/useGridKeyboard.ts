@@ -1,5 +1,5 @@
 import { useCallback, type KeyboardEvent } from "react";
-import type { CellFormatName } from "../../model/cell-format";
+import { CELL_FORMAT, type CellFormatName } from "../../model/cell-format";
 import type { SheetStore } from "../../store/sheet-store";
 import type { SheetUndo } from "../../store/undo";
 import type { EditingApi } from "./useEditing";
@@ -8,9 +8,9 @@ import type { SelectionApi } from "./useSelection";
 // e.code(물리 키) 기준 — 한글 자판에서는 e.key가 'ㅠ' 등으로 보고되어 매칭이 깨진다.
 // 취소선(⌘⇧X)은 Shift 조건이 있어 매핑 표가 아니라 호출부에서 처리한다.
 const FORMAT_SHORTCUTS: Record<string, CellFormatName | undefined> = {
-  KeyB: "bold",
-  KeyI: "italic",
-  KeyU: "underline",
+  KeyB: CELL_FORMAT.BOLD,
+  KeyI: CELL_FORMAT.ITALIC,
+  KeyU: CELL_FORMAT.UNDERLINE,
 };
 
 const ARROWS: Record<string, readonly [number, number]> = {
@@ -37,7 +37,9 @@ export function useGridKeyboard(
       // preventDefault로 브라우저 기본 동작(Ctrl+B/U 등)을 차단한다.
       if (e.metaKey || e.ctrlKey) {
         const format =
-          e.code === "KeyX" && e.shiftKey ? "strike" : FORMAT_SHORTCUTS[e.code];
+          e.code === "KeyX" && e.shiftKey
+            ? CELL_FORMAT.STRIKE
+            : FORMAT_SHORTCUTS[e.code];
         if (format) {
           e.preventDefault();
           store.toggleFormat(range, format);

@@ -1,5 +1,6 @@
 import type { CellAddress } from "../model/cell";
 import {
+  CELL_STYLE,
   DEFAULT_FONT_SIZE,
   isCellAlign,
   type CellAlign,
@@ -24,12 +25,12 @@ export function createFormatOps(
   }
 
   function getCellAlign(addr: CellAddress): CellAlign | null {
-    const v = cells.get(styleKey(addr, "align"));
+    const v = cells.get(styleKey(addr, CELL_STYLE.ALIGN));
     return isCellAlign(v) ? v : null;
   }
 
   function getCellSize(addr: CellAddress): number {
-    const v = cells.get(styleKey(addr, "size"));
+    const v = cells.get(styleKey(addr, CELL_STYLE.SIZE));
     return typeof v === "number" ? v : DEFAULT_FONT_SIZE;
   }
 
@@ -54,7 +55,7 @@ export function createFormatOps(
       // 이미 같은 값인 셀은 건드리지 않는다 — undo가 정확히 원래 상태로 복구된다
       editRange(range, (addr) => {
         if (getCellAlign(addr) === align) return;
-        const key = styleKey(addr, "align");
+        const key = styleKey(addr, CELL_STYLE.ALIGN);
         if (align === null) cells.delete(key);
         else cells.set(key, align);
       });
@@ -63,7 +64,7 @@ export function createFormatOps(
     setCellSize(range: CellRange, size: number) {
       editRange(range, (addr) => {
         if (getCellSize(addr) === size) return;
-        const key = styleKey(addr, "size");
+        const key = styleKey(addr, CELL_STYLE.SIZE);
         if (size === DEFAULT_FONT_SIZE) cells.delete(key);
         else cells.set(key, size);
       });
