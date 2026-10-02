@@ -3,7 +3,8 @@
  *
  * - persistence.ts        : y-indexeddb 연결 (1단계)
  * - broadcast-provider.ts : BroadcastChannel로 Yjs update 송수신 (2단계)
- * - presence.ts           : awareness, 참여자 이름·색, 탭 종료 처리 (2단계)
+ * - presence/             : 참여자 — awareness 래퍼(presence), 이름·색 생성(identity),
+ *                           비정상 종료 감지(peer-locks) (2단계)
  * - ui/                   : 참여자 목록, 다른 참여자의 선택 범위 오버레이
  *
  * 의존 규칙: 코어는 Y.Doc만 다루며 sheet·ai·session을 import하지 않는다.
@@ -19,7 +20,7 @@ export {
   EMPTY_PARTICIPANTS,
   type Participant,
   type Presence,
-} from "./presence";
+} from "./presence/presence";
 export { ParticipantList } from "./ui/ParticipantList";
 export {
   RemoteSelectionOverlay,

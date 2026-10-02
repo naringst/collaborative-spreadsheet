@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { cellRect, normalizeRange, type GridCursor } from "@/features/sheet";
-import { EMPTY_PARTICIPANTS, type Presence } from "../presence";
+import { EMPTY_PARTICIPANTS, type Presence } from "../presence/presence";
 import { isCellAddress } from "./payload-guards";
 import { BADGE_LINE_H, PeerBadge } from "./PeerBadge";
 

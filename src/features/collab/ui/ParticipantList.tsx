@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { EMPTY_PARTICIPANTS, type Presence } from "../presence";
+import { EMPTY_PARTICIPANTS, type Presence } from "../presence/presence";
 
 /**
  * 접속 중 참여자를 겹친 아바타(이름 첫 글자)로 보여 준다 (C4).
