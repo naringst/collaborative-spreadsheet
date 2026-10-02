@@ -1,5 +1,11 @@
 import { GRID_COLS, GRID_ROWS, columnLabel } from "../model/cell";
-import { CELL_H, CELL_W, HEADER_W } from "./metrics";
+import {
+  COL_HEADER_CLASS,
+  CORNER_HEADER_CLASS,
+  GRID_CONTAINER_CLASS,
+  GRID_CONTAINER_STYLE,
+  ROW_HEADER_CLASS,
+} from "./grid-layout";
 
 const ROWS = Array.from({ length: GRID_ROWS }, (_, i) => i);
 const COLS = Array.from({ length: GRID_COLS }, (_, i) => i);
@@ -15,25 +21,19 @@ export function SheetGridSkeleton() {
       aria-busy
       aria-label="시트를 불러오는 중"
     >
-      <div
-        className="grid w-max select-none"
-        style={{
-          gridTemplateColumns: `${HEADER_W}px repeat(${GRID_COLS}, ${CELL_W}px)`,
-          gridAutoRows: `${CELL_H}px`,
-        }}
-      >
-        <div className="border-line-2 bg-grid-head sticky top-0 left-0 z-30 border-r border-b" />
+      <div className={GRID_CONTAINER_CLASS} style={GRID_CONTAINER_STYLE}>
+        <div className={CORNER_HEADER_CLASS} />
         {COLS.map((col) => (
           <div
             key={col}
-            className="border-line-2 bg-grid-head text-ink-2 sticky top-0 z-20 border-r border-b text-center text-[11px] leading-[26px] font-medium"
+            className={`${COL_HEADER_CLASS} bg-grid-head text-ink-2`}
           >
             {columnLabel(col)}
           </div>
         ))}
         {ROWS.map((row) => (
           <div key={row} className="contents">
-            <div className="border-line-2 bg-grid-head text-ink-2 sticky left-0 z-10 border-r border-b text-center text-[11px] leading-[26px] font-medium tabular-nums">
+            <div className={`${ROW_HEADER_CLASS} bg-grid-head text-ink-2`}>
               {row + 1}
             </div>
             {COLS.map((col) => (

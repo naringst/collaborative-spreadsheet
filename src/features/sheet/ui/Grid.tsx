@@ -20,7 +20,14 @@ import type { SheetStore } from "../store/sheet-store";
 import type { SheetUndo } from "../store/undo";
 import { Cell } from "./Cell";
 import { CellEditor } from "./CellEditor";
-import { CELL_H, CELL_W, HEADER_W, cellRect } from "./metrics";
+import { cellRect } from "./metrics";
+import {
+  COL_HEADER_CLASS,
+  CORNER_HEADER_CLASS,
+  GRID_CONTAINER_CLASS,
+  GRID_CONTAINER_STYLE,
+  ROW_HEADER_CLASS,
+} from "./grid-layout";
 import { useDragSelection } from "./hooks/useDragSelection";
 import { useEditing } from "./hooks/useEditing";
 import { useGridKeyboard } from "./hooks/useGridKeyboard";
@@ -185,24 +192,18 @@ export const SheetGrid = memo(function SheetGrid({
       onPointerCancel={drag.stop}
       onDoubleClick={onDoubleClick}
     >
-      <div
-        className="grid w-max select-none"
-        style={{
-          gridTemplateColumns: `${HEADER_W}px repeat(${GRID_COLS}, ${CELL_W}px)`,
-          gridAutoRows: `${CELL_H}px`,
-        }}
-      >
+      <div className={GRID_CONTAINER_CLASS} style={GRID_CONTAINER_STYLE}>
         <div
           data-header="all"
           title="전체 선택"
-          className="border-line-2 bg-grid-head sticky top-0 left-0 z-30 cursor-pointer border-r border-b"
+          className={`${CORNER_HEADER_CLASS} cursor-pointer`}
         />
         {COLS.map((col) => (
           <div
             key={col}
             data-header="col"
             data-col={col}
-            className={`border-line-2 sticky top-0 z-20 cursor-pointer border-r border-b text-center text-[11px] leading-[26px] font-medium ${
+            className={`${COL_HEADER_CLASS} cursor-pointer ${
               col >= norm.left && col <= norm.right
                 ? "bg-accent-soft text-accent"
                 : "bg-grid-head text-ink-2"
@@ -216,7 +217,7 @@ export const SheetGrid = memo(function SheetGrid({
             <div
               data-header="row"
               data-row={row}
-              className={`border-line-2 sticky left-0 z-10 cursor-pointer border-r border-b text-center text-[11px] leading-[26px] font-medium tabular-nums ${
+              className={`${ROW_HEADER_CLASS} cursor-pointer ${
                 row >= norm.top && row <= norm.bottom
                   ? "bg-accent-soft text-accent"
                   : "bg-grid-head text-ink-2"
