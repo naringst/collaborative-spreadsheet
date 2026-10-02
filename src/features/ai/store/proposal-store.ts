@@ -3,6 +3,7 @@ import {
   rangeLabel,
   type CellAddress,
   type CellRange,
+  type CellSnapshot,
   type GridCursor,
   type SheetStore,
   type SheetUndo,
@@ -65,6 +66,15 @@ export interface ProposalStore {
   destroy(): void;
 }
 
+// 요청 시점 스냅샷에서 "주소 → 그때의 값" 조회를 만든다 — 이후 시트가 바뀌어도
+// base는 불변이라 적용 시 충돌 판정의 기준이 된다 (X1).
+function makeBaseLookup(
+  snapshot: CellSnapshot[],
+): (addr: CellAddress) => string {
+  const byKey = new Map(snapshot.map((c) => [cellKey(c.addr), c.value]));
+  return (addr) => byKey.get(cellKey(addr)) ?? "";
+}
+
 export function createProposalStore(deps: {
   store: SheetStore;
   undo: SheetUndo;
@@ -79,6 +89,14 @@ export function createProposalStore(deps: {
 
   const notify = () => {
     for (const listener of listeners) listener();
+  };
+
+  // 세션 일부 필드를 바꾸고 구독자에게 알린다. 세션이 없으면 아무 일도 안 한다.
+  // (새 세션 생성·세션 종료는 session을 직접 대입한다.)
+  const patchSession = (patch: Partial<ProposalSession>) => {
+    if (!session) return;
+    session = { ...session, ...patch };
+    notify();
   };
 
   // 셀의 현재 시트 값과 충돌 여부를 다시 읽는다 (X1). resolution은 보존한다.
@@ -99,9 +117,7 @@ export function createProposalStore(deps: {
       }
       return next;
     });
-    if (!changed) return;
-    session = { ...session, cells };
-    notify();
+    if (changed) patchSession({ cells });
   };
   const unsubscribeStore = store.subscribe(recomputeConflicts);
 
@@ -111,10 +127,8 @@ export function createProposalStore(deps: {
     abort?.abort(); // 진행 중이던 요청은 취소하고 새로 시작
     lastStart = opts;
 
-    // 요청 시점의 값을 base로 고정한다 (X1). 이후 store가 바뀌어도 base는 불변.
     const snapshot = store.snapshotValues();
-    const baseByKey = new Map(snapshot.map((c) => [cellKey(c.addr), c.value]));
-    const base = (addr: CellAddress) => baseByKey.get(cellKey(addr)) ?? "";
+    const base = makeBaseLookup(snapshot);
 
     session = {
       status: "generating",
@@ -133,26 +147,21 @@ export function createProposalStore(deps: {
     const onItem = (raw: unknown) => {
       if (controller.signal.aborted || !session) return;
       const parsed = parseProposalItem(raw, base, targetRange);
-      if (parsed) {
-        // 이미 원격 변경이 있었다면 추가 시점에 바로 충돌로 표시한다 (X1)
-        session = { ...session, cells: [...session.cells, liveCell(parsed)] };
-        notify();
-      }
+      // 이미 원격 변경이 있었다면 추가 시점에 바로 충돌로 표시한다 (X1)
+      if (parsed) patchSession({ cells: [...session.cells, liveCell(parsed)] });
     };
 
     source({ prompt, context, targetLabel }, onItem, controller.signal)
       .then(() => {
         if (controller.signal.aborted || !session) return;
-        session = { ...session, status: "complete" };
-        notify();
+        patchSession({ status: "complete" });
       })
       .catch((err: unknown) => {
         // 취소·교체로 인한 abort는 cancel()/다음 run이 상태를 책임진다
         if (controller.signal.aborted || !session) return;
         const kind: AiErrorKind = err instanceof AiError ? err.kind : "network";
         // 받은 부분 제안은 남겨 확인만 가능하게 둔다 (A6)
-        session = { ...session, status: "error", error: kind };
-        notify();
+        patchSession({ status: "error", error: kind });
       });
   };
 
@@ -162,8 +171,7 @@ export function createProposalStore(deps: {
     cancel() {
       if (!session || session.status !== "generating") return;
       abort?.abort();
-      session = { ...session, status: "cancelled" };
-      notify();
+      patchSession({ status: "cancelled" });
     },
 
     retry() {
@@ -182,9 +190,7 @@ export function createProposalStore(deps: {
         }
         return c;
       });
-      if (!changed) return;
-      session = { ...session, cells };
-      notify();
+      if (changed) patchSession({ cells });
     },
 
     apply() {
