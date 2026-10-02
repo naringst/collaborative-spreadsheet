@@ -20,14 +20,14 @@ import type { SheetStore } from "../store/sheet-store";
 import type { SheetUndo } from "../store/undo";
 import { Cell } from "./Cell";
 import { CellEditor } from "./CellEditor";
-import { cellRect } from "./metrics";
+import { cellRect } from "./layout/metrics";
 import {
   COL_HEADER_CLASS,
   CORNER_HEADER_CLASS,
   GRID_CONTAINER_CLASS,
   GRID_CONTAINER_STYLE,
   ROW_HEADER_CLASS,
-} from "./grid-layout";
+} from "./layout/grid-layout";
 import { useDragSelection } from "./hooks/useDragSelection";
 import { useEditing } from "./hooks/useEditing";
 import { useGridKeyboard } from "./hooks/useGridKeyboard";

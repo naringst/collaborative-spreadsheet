@@ -5,7 +5,7 @@ import {
   GRID_CONTAINER_CLASS,
   GRID_CONTAINER_STYLE,
   ROW_HEADER_CLASS,
-} from "./grid-layout";
+} from "./layout/grid-layout";
 
 const ROWS = Array.from({ length: GRID_ROWS }, (_, i) => i);
 const COLS = Array.from({ length: GRID_COLS }, (_, i) => i);

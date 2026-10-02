@@ -1,4 +1,4 @@
-import { GRID_COLS } from "../model/cell";
+import { GRID_COLS } from "../../model/cell";
 import { CELL_H, CELL_W, HEADER_W } from "./metrics";
 
 /**

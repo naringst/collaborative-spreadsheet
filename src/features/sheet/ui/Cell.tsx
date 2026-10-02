@@ -1,7 +1,7 @@
 import { memo, useSyncExternalStore } from "react";
 import { isNumericValue } from "../model/cell";
 import { defaultAlign } from "../model/cell-format";
-import { HEADER_H, HEADER_W } from "./metrics";
+import { HEADER_H, HEADER_W } from "./layout/metrics";
 import { useCellFormats, useCellStyle } from "./hooks/useCellFormats";
 import type { SheetStore } from "../store/sheet-store";
 
