@@ -50,19 +50,6 @@ export function createBroadcastProvider(opts: {
     });
   };
 
-  // ── 나가는 변경: 내 로컬 편집을 피어에 broadcast (origin이 자신이면 에코라 무시) ──
-  const onDocUpdate = (update: Uint8Array, origin: unknown) => {
-    if (origin !== provider) post({ type: "update", update });
-  };
-
-  const onAwarenessUpdate = (
-    changes: { added: number[]; updated: number[]; removed: number[] },
-    origin: unknown,
-  ) => {
-    if (origin === provider) return;
-    postAwareness([...changes.added, ...changes.updated, ...changes.removed]);
-  };
-
   // ── 들어오는 메시지 처리 ──
   const handleSyncRequest = (peerStateVector: Uint8Array) => {
     post({
@@ -101,6 +88,19 @@ export function createBroadcastProvider(opts: {
           applyAwarenessUpdate(awareness, message.payload, provider);
         break;
     }
+  };
+
+  // ── 나가는 변경: 내 로컬 편집을 피어에 broadcast (origin이 자신이면 에코라 무시) ──
+  const onDocUpdate = (update: Uint8Array, origin: unknown) => {
+    if (origin !== provider) post({ type: "update", update });
+  };
+
+  const onAwarenessUpdate = (
+    changes: { added: number[]; updated: number[]; removed: number[] },
+    origin: unknown,
+  ) => {
+    if (origin === provider) return;
+    postAwareness([...changes.added, ...changes.updated, ...changes.removed]);
   };
 
   // ── 생명주기: connect로 구독·핸드셰이크를 걸고, destroy(=disconnect)로 되돈다 ──
