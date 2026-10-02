@@ -1,16 +1,24 @@
-import { useEffect } from "react";
 import type { CellAddress } from "../model/cell";
-import { cellRect } from "./layout/metrics";
+import { cellRect, type CellRect } from "./layout/metrics";
 import type { EditingApi } from "./hooks/useEditing";
-
-// Safari 등 field-sizing 미지원 브라우저에서는 JS로 input 너비를 내용에 맞춘다 (S7 편집 시 전체 표시)
-const supportsFieldSizing =
-  typeof CSS !== "undefined" && CSS.supports("field-sizing", "content");
+import { useFitInputWidth } from "./hooks/useFitInputWidth";
 
 interface CellEditorProps {
   editor: EditingApi;
   /** 편집 전 input을 세워 둘 위치 — 활성 셀 (선택 상태는 Grid 소관) */
   active: CellAddress;
+}
+
+/** D6: 편집 중 다른 참여자가 이 셀을 먼저 확정함 */
+function ConflictBadge({ rect }: { rect: CellRect }) {
+  return (
+    <div
+      className="bg-warn-soft text-warn pointer-events-none absolute z-[7] rounded-md px-1.5 py-0.5 text-[11px] whitespace-nowrap shadow-sm"
+      style={{ left: rect.left, top: rect.top - 24 }}
+    >
+      다른 참여자가 이 셀을 변경했습니다
+    </div>
+  );
 }
 
 /**
@@ -20,50 +28,42 @@ interface CellEditorProps {
  */
 export function CellEditor({ editor, active }: CellEditorProps) {
   const { editing, remoteConflict, inputRef } = editor;
-  // 편집 중엔 그 셀에 고정, 아니면 다음 입력을 받을 활성 셀 위에 대기 (같은 input이 두 단계를 관통)
-  const anchor = editing?.addr ?? active;
-  const rect = cellRect(anchor.row, anchor.col);
 
-  const startHere = () => {
-    if (!editing) editor.start(active, "replace");
-  };
+  const startHere = () => editor.start(active, "replace");
+  const fitWidth = useFitInputWidth(inputRef, editing !== null);
 
-  const fitWidthToContent = () => {
-    const input = inputRef.current;
-    if (!input || supportsFieldSizing) return;
-    input.style.width = "0";
-    input.style.width = `${input.scrollWidth + 4}px`;
-  };
-
-  // append 진입은 start()가 input 값을 채우므로 진입 직후에도 너비를 맞춘다
-  useEffect(() => {
-    if (editing) fitWidthToContent();
-    else if (inputRef.current) inputRef.current.style.width = "";
-  });
+  // input 요소는 하나(S2) — 편집 중/대기 중의 차이는 이 표가 전부다
+  const phase = editing
+    ? {
+        anchor: editing.addr, // 편집 중인 셀에 고정 (undo로 선택이 옮겨가도 안 따라감)
+        hiddenClass: "",
+        conflict: remoteConflict,
+        onBeforeInput: undefined, // 이미 편집 중 — 입력은 input 기본 동작
+        onCompositionStart: editor.onCompositionStart,
+      }
+    : {
+        anchor: active, // 다음 입력을 받도록 활성 셀 위에 투명하게 대기
+        hiddenClass: "pointer-events-none opacity-0",
+        conflict: false,
+        onBeforeInput: startHere, // 첫 입력 = 편집 시작
+        onCompositionStart: () => {
+          editor.onCompositionStart();
+          startHere(); // 첫 입력이 한글 조합으로 시작하는 경우
+        },
+      };
+  const rect = cellRect(phase.anchor.row, phase.anchor.col);
 
   return (
     <>
-      {editing && remoteConflict && (
-        <div
-          className="bg-warn-soft text-warn pointer-events-none absolute z-[7] rounded-md px-1.5 py-0.5 text-[11px] whitespace-nowrap shadow-sm"
-          style={{ left: rect.left, top: rect.top - 24 }}
-        >
-          다른 참여자가 이 셀을 변경했습니다
-        </div>
-      )}
+      {phase.conflict && <ConflictBadge rect={rect} />}
       <input
         ref={inputRef}
-        onBeforeInput={startHere}
-        onCompositionStart={() => {
-          editor.onCompositionStart();
-          startHere();
-        }}
+        onBeforeInput={phase.onBeforeInput}
+        onCompositionStart={phase.onCompositionStart}
         onCompositionEnd={editor.onCompositionEnd}
-        onInput={fitWidthToContent}
+        onInput={fitWidth}
         onPointerDown={(e) => e.stopPropagation()}
-        className={`border-accent bg-surface text-ink absolute z-[6] field-sizing-content border-2 px-1 text-[13px] outline-none ${
-          editing ? "" : "pointer-events-none opacity-0"
-        }`}
+        className={`border-accent bg-surface text-ink absolute z-[6] field-sizing-content border-2 px-1 text-[13px] outline-none ${phase.hiddenClass}`}
         style={{
           left: rect.left,
           top: rect.top,
