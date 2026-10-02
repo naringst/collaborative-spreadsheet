@@ -14,7 +14,12 @@ export {
   type BroadcastProvider,
 } from "./broadcast-provider";
 export { createPersistence, type Persistence } from "./persistence";
-export { createPresence, type Participant, type Presence } from "./presence";
+export {
+  createPresence,
+  EMPTY_PARTICIPANTS,
+  type Participant,
+  type Presence,
+} from "./presence";
 export { ParticipantList } from "./ui/ParticipantList";
 export {
   RemoteSelectionOverlay,

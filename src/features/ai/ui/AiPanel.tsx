@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
+  cellKey,
   cellLabel,
   isSingleCell,
   rangeLabel,
   type CellAddress,
   type GridCursor,
 } from "@/features/sheet";
+import { SparkIcon } from "@/shared/ui/icons";
 import {
   aiErrorMessage,
   canApply,
@@ -108,7 +110,7 @@ export function AiPanel({
     <div className="border-line bg-surface flex h-full w-80 shrink-0 flex-col border-l text-[13px]">
       <div className="border-line text-ink flex h-10 items-center justify-between border-b px-3 font-medium">
         <span className="inline-flex items-center gap-1.5">
-          <SparkIcon />
+          <SparkIcon className="text-accent" />
           AI 편집
         </span>
         <button
@@ -320,13 +322,13 @@ function ProposalCard({
           {session.cells.map((cell) =>
             cell.conflict ? (
               <ConflictRow
-                key={cellLabel(cell.addr)}
+                key={cellKey(cell.addr)}
                 cell={cell}
                 onSetResolution={onSetResolution}
               />
             ) : (
               <li
-                key={cellLabel(cell.addr)}
+                key={cellKey(cell.addr)}
                 className="bg-surface-2 flex items-baseline gap-2 rounded-md px-2 py-1"
               >
                 <span className="text-ink-3 w-8 shrink-0 font-mono text-[11px]">
@@ -455,17 +457,3 @@ function GeneratingNotice({ hasCells }: { hasCells: boolean }) {
   );
 }
 
-function SparkIcon() {
-  return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-      aria-hidden
-      className="text-accent"
-    >
-      <path d="M8 1.5 9.6 6l4.4 1.6L9.6 9.2 8 13.7 6.4 9.2 2 7.6 6.4 6z" />
-    </svg>
-  );
-}

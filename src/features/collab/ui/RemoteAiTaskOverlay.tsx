@@ -1,24 +1,16 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import {
-  cellRect,
-  normalizeRange,
-  type CellRange,
-} from "@/features/sheet";
-import type { Presence } from "../presence";
+import { cellRect, normalizeRange, type CellRange } from "@/features/sheet";
+import { EMPTY_PARTICIPANTS, type Presence } from "../presence";
+import { isCellAddress } from "./payload-guards";
+import { PeerBadge } from "./PeerBadge";
 
 /** awareness aiTask 페이로드의 구체 타입 — collab 코어는 이 모양을 모른다 (X2) */
 export interface AiTaskPayload {
   /** 대상 범위. null이면 시트 전체 요청 */
   range: CellRange | null;
   phase: "generating" | "reviewing";
-}
-
-function isCellAddress(v: unknown): v is { row: number; col: number } {
-  if (typeof v !== "object" || v === null) return false;
-  const a = v as { row?: unknown; col?: unknown };
-  return typeof a.row === "number" && typeof a.col === "number";
 }
 
 // 범위가 null(시트 전체)이거나 anchor·focus가 온전한 범위만 통과시킨다 — 구버전
@@ -32,8 +24,6 @@ export function isAiTaskPayload(task: unknown): task is AiTaskPayload {
   return isCellAddress(r?.anchor) && isCellAddress(r?.focus);
 }
 
-const NO_PARTICIPANTS: never[] = [];
-
 /**
  * 다른 참여자가 AI 편집을 생성·검토 중인 범위에 점선 테두리와 배지를 그린다 (X2).
  * 제안 값은 보이지 않고 편집을 막지도 않는다 — 확정 안 된 개인 초안이다.
@@ -43,7 +33,7 @@ export function RemoteAiTaskOverlay({ presence }: { presence: Presence }) {
   const participants = useSyncExternalStore(
     presence.subscribe,
     presence.getParticipants,
-    () => NO_PARTICIPANTS,
+    () => EMPTY_PARTICIPANTS,
   );
 
   return (
@@ -73,16 +63,12 @@ export function RemoteAiTaskOverlay({ presence }: { presence: Presence }) {
                 }}
               />
             )}
-            <div
-              className="absolute rounded-[3px_3px_3px_0] px-1.5 text-[10px] leading-4 font-medium whitespace-nowrap text-white"
-              style={{
-                left: box.left,
-                top: norm && norm.top > 0 ? box.top - 16 : box.top + box.height,
-                backgroundColor: p.color,
-              }}
-            >
-              {label}
-            </div>
+            <PeerBadge
+              left={box.left}
+              top={norm && norm.top > 0 ? box.top - 16 : box.top + box.height}
+              color={p.color}
+              label={label}
+            />
           </div>
         );
       })}

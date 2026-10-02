@@ -3,6 +3,9 @@ import type * as Y from "yjs";
 import { generateName, pickColor } from "./identity";
 import { createPeerLocks } from "./peer-locks";
 
+/** useSyncExternalStore의 빈/서버 스냅샷용 안정 참조 (매번 새 배열 금지) */
+export const EMPTY_PARTICIPANTS: Participant[] = [];
+
 export interface Participant {
   clientId: number;
   name: string;

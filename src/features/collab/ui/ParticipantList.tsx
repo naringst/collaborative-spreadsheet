@@ -1,9 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { Presence } from "../presence";
-
-const NO_PARTICIPANTS: never[] = [];
+import { EMPTY_PARTICIPANTS, type Presence } from "../presence";
 
 /**
  * 접속 중 참여자를 겹친 아바타(이름 첫 글자)로 보여 준다 (C4).
@@ -13,7 +11,7 @@ export function ParticipantList({ presence }: { presence: Presence }) {
   const participants = useSyncExternalStore(
     presence.subscribe,
     presence.getParticipants,
-    () => NO_PARTICIPANTS,
+    () => EMPTY_PARTICIPANTS,
   );
 
   return (

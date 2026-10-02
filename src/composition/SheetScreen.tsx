@@ -9,12 +9,12 @@ import {
 } from "react";
 import { AiPanel, AiTargetOverlay } from "@/features/ai";
 import {
+  EMPTY_PARTICIPANTS,
   ParticipantList,
   RemoteAiTaskOverlay,
   RemoteSelectionOverlay,
   isAiTaskPayload,
   type AiTaskPayload,
-  type Participant,
 } from "@/features/collab";
 import {
   SheetGrid,
@@ -29,6 +29,7 @@ import {
   type GridCursor,
 } from "@/features/sheet";
 import { StorageWarningBanner } from "@/shared/ui/Notice";
+import { SparkIcon } from "@/shared/ui/icons";
 import { SheetSessionProvider, useSheetSession } from "./SheetSession";
 
 const INITIAL_CURSOR: GridCursor = {
@@ -39,8 +40,7 @@ const INITIAL_CURSOR: GridCursor = {
 // useSyncExternalStore에 넘길 안정 참조 — presence·proposalStore가 없을 때(loading)
 const NO_SUBSCRIBE = () => () => {};
 const NO_SESSION = () => null;
-const NO_PARTICIPANTS: Participant[] = [];
-const GET_NO_PARTICIPANTS = () => NO_PARTICIPANTS;
+const GET_NO_PARTICIPANTS = () => EMPTY_PARTICIPANTS;
 
 function SheetWorkspace() {
   const session = useSheetSession();
@@ -156,15 +156,7 @@ function SheetWorkspace() {
                   }`}
                   onClick={() => setAiOpen((v) => !v)}
                 >
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                    aria-hidden
-                  >
-                    <path d="M8 1.5 9.6 6l4.4 1.6L9.6 9.2 8 13.7 6.4 9.2 2 7.6 6.4 6z" />
-                  </svg>
+                  <SparkIcon />
                   AI 편집
                 </button>
               </>

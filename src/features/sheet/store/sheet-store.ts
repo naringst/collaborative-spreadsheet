@@ -57,28 +57,28 @@ export function createSheetStore(doc: Y.Doc): SheetStore {
   // 규약과 대칭이라 false·기본값 잔여 키가 남지 않는다.
   const cells = doc.getMap<string | boolean | number>("cells");
 
-  function getValue(addr: CellAddress): string {
+  function getCellValue(addr: CellAddress): string {
     const v = cells.get(valueKey(addr));
     return typeof v === "string" ? v : "";
   }
 
-  function getFormat(addr: CellAddress, format: CellFormatName): boolean {
+  function getCellFormat(addr: CellAddress, format: CellFormatName): boolean {
     return cells.get(formatKey(addr, format)) === true;
   }
 
-  function getAlign(addr: CellAddress): CellAlign | null {
+  function getCellAlign(addr: CellAddress): CellAlign | null {
     const v = cells.get(styleKey(addr, "align"));
     return isCellAlign(v) ? v : null;
   }
 
-  function getSize(addr: CellAddress): number {
+  function getCellSize(addr: CellAddress): number {
     const v = cells.get(styleKey(addr, "size"));
     return typeof v === "number" ? v : DEFAULT_FONT_SIZE;
   }
 
   function setValue(addr: CellAddress, value: string) {
     // 값이 같으면 쓰지 않는다 — 무변경 커밋(Enter만 누름)이 undo 단계를 만들지 않게
-    if (getValue(addr) === value) return;
+    if (getCellValue(addr) === value) return;
     if (value === "") {
       // 빈 값은 키를 지워 "값 없음"과 "빈 문자열"이 갈라지지 않게 한다.
       cells.delete(valueKey(addr));
@@ -87,88 +87,107 @@ export function createSheetStore(doc: Y.Doc): SheetStore {
     cells.set(valueKey(addr), value);
   }
 
+  // transact 하나 = undo 1단계 (S5). 로컬 편집은 LOCAL_ORIGIN으로 묶어야
+  // 에코 차단·내 변경만 undo가 성립한다.
+  function transactLocal(fn: () => void) {
+    doc.transact(fn, LOCAL_ORIGIN);
+  }
+
+  // 범위의 각 셀에 edit을 적용하는 공통 뼈대 (clear·서식·정렬·크기가 공유)
+  function editRange(range: CellRange, edit: (addr: CellAddress) => void) {
+    transactLocal(() => {
+      for (const addr of cellsInRange(range)) edit(addr);
+    });
+  }
+
+  function setCellValue(addr: CellAddress, value: string) {
+    transactLocal(() => setValue(addr, value));
+  }
+
+  function clearRange(range: CellRange) {
+    editRange(range, (addr) => setValue(addr, ""));
+  }
+
+  function applyCellValues(changes: { addr: CellAddress; value: string }[]) {
+    transactLocal(() => {
+      for (const { addr, value } of changes) setValue(addr, value);
+    });
+  }
+
+  function snapshotValues(): CellSnapshot[] {
+    const result: CellSnapshot[] = [];
+    for (const key of cells.keys()) {
+      // 값 있는 셀의 기준은 "r:c:v" 키의 존재다
+      if (!key.endsWith(":v")) continue;
+      const addr = parseCellKey(key);
+      if (!addr) continue;
+      result.push({
+        addr,
+        value: getCellValue(addr),
+        formats: CELL_FORMATS.filter((f) => getCellFormat(addr, f)),
+      });
+    }
+    return result;
+  }
+
+  function toggleFormat(range: CellRange, format: CellFormatName) {
+    const allOn = cellsInRange(range).every((addr) =>
+      getCellFormat(addr, format),
+    );
+    // 이미 맞는 상태의 셀은 건드리지 않는다 — undo가 정확히 원래 상태로 복구된다
+    editRange(range, (addr) => {
+      const key = formatKey(addr, format);
+      if (allOn) cells.delete(key);
+      else if (!getCellFormat(addr, format)) cells.set(key, true);
+    });
+  }
+
+  function setCellAlign(range: CellRange, align: CellAlign | null) {
+    // 이미 같은 값인 셀은 건드리지 않는다 — undo가 정확히 원래 상태로 복구된다
+    editRange(range, (addr) => {
+      if (getCellAlign(addr) === align) return;
+      const key = styleKey(addr, "align");
+      if (align === null) cells.delete(key);
+      else cells.set(key, align);
+    });
+  }
+
+  function setCellSize(range: CellRange, size: number) {
+    editRange(range, (addr) => {
+      if (getCellSize(addr) === size) return;
+      const key = styleKey(addr, "size");
+      if (size === DEFAULT_FONT_SIZE) cells.delete(key);
+      else cells.set(key, size);
+    });
+  }
+
+  function subscribe(listener: (info?: { isLocalChange: boolean }) => void) {
+    const handler = (
+      _event: Y.YMapEvent<string | boolean | number>,
+      transaction: Y.Transaction,
+    ) => {
+      listener({
+        isLocalChange:
+          transaction.origin === LOCAL_ORIGIN ||
+          transaction.origin instanceof Y.UndoManager, // 내 undo/redo도 로컬 변경
+      });
+    };
+    cells.observe(handler);
+    return () => cells.unobserve(handler);
+  }
+
   return {
-    setCellValue(addr, value) {
-      doc.transact(() => setValue(addr, value), LOCAL_ORIGIN);
-    },
-    clearRange(range) {
-      // transact 하나 = undo 1단계 (S5)
-      doc.transact(() => {
-        for (const addr of cellsInRange(range)) {
-          setValue(addr, "");
-        }
-      }, LOCAL_ORIGIN);
-    },
-    applyCellValues(changes) {
-      doc.transact(() => {
-        for (const { addr, value } of changes) setValue(addr, value);
-      }, LOCAL_ORIGIN);
-    },
-    snapshotValues() {
-      const result: CellSnapshot[] = [];
-      for (const key of cells.keys()) {
-        // 값 있는 셀의 기준은 "r:c:v" 키의 존재다
-        if (!key.endsWith(":v")) continue;
-        const addr = parseCellKey(key);
-        if (!addr) continue;
-        result.push({
-          addr,
-          value: getValue(addr),
-          formats: CELL_FORMATS.filter((f) => getFormat(addr, f)),
-        });
-      }
-      return result;
-    },
-    toggleFormat(range, format) {
-      const addrs = cellsInRange(range);
-      const allOn = addrs.every((addr) => getFormat(addr, format));
-      // 이미 맞는 상태의 셀은 건드리지 않는다 — undo가 정확히 원래 상태로 복구된다
-      doc.transact(() => {
-        for (const addr of addrs) {
-          const key = formatKey(addr, format);
-          if (allOn) cells.delete(key);
-          else if (!getFormat(addr, format)) cells.set(key, true);
-        }
-      }, LOCAL_ORIGIN);
-    },
-    setCellAlign(range, align) {
-      // 이미 같은 값인 셀은 건드리지 않는다 — undo가 정확히 원래 상태로 복구된다
-      doc.transact(() => {
-        for (const addr of cellsInRange(range)) {
-          if (getAlign(addr) === align) continue;
-          const key = styleKey(addr, "align");
-          if (align === null) cells.delete(key);
-          else cells.set(key, align);
-        }
-      }, LOCAL_ORIGIN);
-    },
-    setCellSize(range, size) {
-      doc.transact(() => {
-        for (const addr of cellsInRange(range)) {
-          if (getSize(addr) === size) continue;
-          const key = styleKey(addr, "size");
-          if (size === DEFAULT_FONT_SIZE) cells.delete(key);
-          else cells.set(key, size);
-        }
-      }, LOCAL_ORIGIN);
-    },
-    getCellValue: getValue,
-    getCellFormat: getFormat,
-    getCellAlign: getAlign,
-    getCellSize: getSize,
-    subscribe(listener) {
-      const handler = (
-        _event: Y.YMapEvent<string | boolean | number>,
-        transaction: Y.Transaction,
-      ) => {
-        listener({
-          isLocalChange:
-            transaction.origin === LOCAL_ORIGIN ||
-            transaction.origin instanceof Y.UndoManager, // 내 undo/redo도 로컬 변경
-        });
-      };
-      cells.observe(handler);
-      return () => cells.unobserve(handler);
-    },
+    setCellValue,
+    clearRange,
+    applyCellValues,
+    snapshotValues,
+    getCellValue,
+    toggleFormat,
+    getCellFormat,
+    setCellAlign,
+    getCellAlign,
+    setCellSize,
+    getCellSize,
+    subscribe,
   };
 }
