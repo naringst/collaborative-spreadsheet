@@ -20,8 +20,9 @@ interface CellEditorProps {
  */
 export function CellEditor({ editor, active }: CellEditorProps) {
   const { editing, remoteConflict, inputRef } = editor;
-  const addr = editing?.addr ?? active;
-  const rect = cellRect(addr.row, addr.col);
+  // 편집 중엔 그 셀에 고정, 아니면 다음 입력을 받을 활성 셀 위에 대기 (같은 input이 두 단계를 관통)
+  const anchor = editing?.addr ?? active;
+  const rect = cellRect(anchor.row, anchor.col);
 
   const startHere = () => {
     if (!editing) editor.start(active, "replace");

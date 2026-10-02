@@ -36,15 +36,9 @@ export function createBroadcastProvider(opts: {
 
   // 이 provider 인스턴스가 원격 적용의 origin이다 — origin이 자신이면 재전송하지
   // 않아 에코 루프가 없고, UndoManager(trackedOrigins=LOCAL)의 undo 대상도 아니다.
-  // (아래 핸들러들이 origin 비교·해제에 참조하므로 먼저 선언한다.)
-  const provider: BroadcastProvider = {
-    destroy() {
-      doc.off("update", onDocUpdate);
-      awareness?.off("update", onAwarenessUpdate);
-      channel.close();
-    },
-  };
+  const provider: BroadcastProvider = { destroy: () => disconnect() };
 
+  // ── 전송 ──
   const post = (message: Message) => channel.postMessage(message);
 
   // awareness 상태를 특정 클라이언트 분량만 인코딩해 보낸다 (세 호출처 공통).
@@ -56,7 +50,7 @@ export function createBroadcastProvider(opts: {
     });
   };
 
-  // ── 보내기: 내 로컬 변경을 피어에 전파 (origin이 자신이면 에코라 무시) ──
+  // ── 나가는 변경: 내 로컬 편집을 피어에 broadcast (origin이 자신이면 에코라 무시) ──
   const onDocUpdate = (update: Uint8Array, origin: unknown) => {
     if (origin !== provider) post({ type: "update", update });
   };
@@ -69,7 +63,7 @@ export function createBroadcastProvider(opts: {
     postAwareness([...changes.added, ...changes.updated, ...changes.removed]);
   };
 
-  // ── 받기: 피어 메시지별 처리 ──
+  // ── 들어오는 메시지 처리 ──
   const handleSyncRequest = (peerStateVector: Uint8Array) => {
     post({
       type: "sync-response",
@@ -90,8 +84,8 @@ export function createBroadcastProvider(opts: {
     if (diff.length > EMPTY_UPDATE_BYTES) post({ type: "update", update: diff });
   };
 
-  channel.onmessage = (e: MessageEvent<Message>) => {
-    const message = e.data;
+  // 들어온 메시지를 종류별로 분기하는 라우터 — provider 동작의 핵심.
+  const handleMessage = (message: Message) => {
     switch (message.type) {
       case "update":
         Y.applyUpdate(doc, message.update, provider);
@@ -109,11 +103,22 @@ export function createBroadcastProvider(opts: {
     }
   };
 
-  // ── 연결: 로컬 변경 구독 + 초기 핸드셰이크(누락분 요청·내 awareness 알림) ──
-  doc.on("update", onDocUpdate);
-  awareness?.on("update", onAwarenessUpdate);
-  post({ type: "sync-request", stateVector: Y.encodeStateVector(doc) });
-  postAwareness([doc.clientID]);
+  // ── 생명주기: connect로 구독·핸드셰이크를 걸고, destroy(=disconnect)로 되돈다 ──
+  const connect = () => {
+    channel.onmessage = (e: MessageEvent<Message>) => handleMessage(e.data);
+    doc.on("update", onDocUpdate);
+    awareness?.on("update", onAwarenessUpdate);
+    // 연결 즉시 누락분을 요청하고(C1), 내 awareness를 알린다
+    post({ type: "sync-request", stateVector: Y.encodeStateVector(doc) });
+    postAwareness([doc.clientID]);
+  };
 
+  const disconnect = () => {
+    doc.off("update", onDocUpdate);
+    awareness?.off("update", onAwarenessUpdate);
+    channel.close();
+  };
+
+  connect();
   return provider;
 }
