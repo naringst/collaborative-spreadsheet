@@ -1,3 +1,4 @@
+import type * as Y from "yjs";
 import { GRID_COLS, GRID_ROWS, cellKey, type CellAddress } from "../model/cell";
 import type { CellFormatName, CellStyleName } from "../model/cell-format";
 
@@ -6,6 +7,13 @@ import type { CellFormatName, CellStyleName } from "../model/cell-format";
  * 값은 `"r:c:v"`, 서식은 `"r:c:bold"`, 스타일은 `"r:c:align"`처럼 셀 주소와
  * 속성을 키 하나에 넣는다. 저장 레이아웃 지식이라 store에 둔다.
  */
+
+/** 값("r:c:v")은 string, 서식은 true, 정렬은 string, 크기는 number */
+export type CellsMap = Y.Map<string | boolean | number>;
+
+export function valueKey(addr: CellAddress): string {
+  return `${cellKey(addr)}:v`;
+}
 
 export function formatKey(addr: CellAddress, format: CellFormatName): string {
   return `${cellKey(addr)}:${format}`;
