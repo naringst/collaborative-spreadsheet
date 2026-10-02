@@ -23,29 +23,37 @@ export function createChangesExtractor(): ChangesExtractor {
   let escape = false;
   let current = ""; // 수집 중인 객체 문자열
 
+  // 문자열/이스케이프 상태를 한 글자 전진시킨다. 문자열 밖의 구조 문자(괄호 등)면
+  // true를 돌려줘 호출측이 괄호로 해석하게 하고, 문자열 안이거나 여는 따옴표면 false.
+  // (문자열 안의 `[`·`{`·`}`를 구조로 오인하지 않게 하는 핵심.)
+  const isStructural = (ch: string): boolean => {
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === "\\") escape = true;
+      else if (ch === '"') inString = false;
+      return false;
+    }
+    if (ch === '"') {
+      inString = true;
+      return false;
+    }
+    return true;
+  };
+
   return {
     push(chunk) {
       const out: unknown[] = [];
       if (done) return out;
 
       for (const ch of chunk) {
+        // 1) 배열이 열리기 전: 문자열 밖의 첫 `[`를 찾는다
         if (!started) {
-          // 배열이 열리기 전에는 첫 `[`만 찾는다 (문자열 안의 `[`는 무시)
-          if (inString) {
-            if (escape) escape = false;
-            else if (ch === "\\") escape = true;
-            else if (ch === '"') inString = false;
-          } else if (ch === '"') {
-            inString = true;
-          } else if (ch === "[") {
-            started = true;
-            inString = false;
-          }
+          if (isStructural(ch) && ch === "[") started = true;
           continue;
         }
 
+        // 2) 객체 바깥: 다음 객체의 시작 `{` 또는 배열의 끝 `]`만 본다
         if (depth === 0) {
-          // 객체 바깥: 다음 객체의 시작이나 배열의 끝만 본다
           if (ch === "{") {
             depth = 1;
             current = "{";
@@ -56,28 +64,18 @@ export function createChangesExtractor(): ChangesExtractor {
           continue;
         }
 
-        // 객체 안: 문자열·중첩 중괄호를 추적하며 닫힘을 감지
+        // 3) 객체 안: 문자열·중첩 괄호를 추적하다 최상위 `}`에서 객체를 떼어 낸다
         current += ch;
-        if (inString) {
-          if (escape) escape = false;
-          else if (ch === "\\") escape = true;
-          else if (ch === '"') inString = false;
-          continue;
-        }
-        if (ch === '"') {
-          inString = true;
-        } else if (ch === "{") {
+        if (!isStructural(ch)) continue;
+        if (ch === "{") {
           depth += 1;
-        } else if (ch === "}") {
-          depth -= 1;
-          if (depth === 0) {
-            try {
-              out.push(JSON.parse(current));
-            } catch {
-              // 완성됐지만 깨진 객체는 버린다 (항목 검증은 호출측)
-            }
-            current = "";
+        } else if (ch === "}" && --depth === 0) {
+          try {
+            out.push(JSON.parse(current));
+          } catch {
+            // 완성됐지만 깨진 객체는 버린다 (항목 검증은 호출측)
           }
+          current = "";
         }
       }
 
