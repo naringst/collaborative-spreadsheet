@@ -1,8 +1,21 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { AiPanel, AiTargetOverlay } from "@/features/ai";
-import { ParticipantList, RemoteSelectionOverlay } from "@/features/collab";
+import {
+  ParticipantList,
+  RemoteAiTaskOverlay,
+  RemoteSelectionOverlay,
+  isAiTaskPayload,
+  type AiTaskPayload,
+  type Participant,
+} from "@/features/collab";
 import {
   SheetGrid,
   SheetGridSkeleton,
@@ -12,6 +25,7 @@ import {
   isSingleCell,
   normalizeRange,
   rangeLabel,
+  rangeOverlaps,
   type GridCursor,
 } from "@/features/sheet";
 import { StorageWarningBanner } from "@/shared/ui/Notice";
@@ -21,6 +35,12 @@ const INITIAL_CURSOR: GridCursor = {
   range: { anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } },
   editing: null,
 };
+
+// useSyncExternalStore에 넘길 안정 참조 — presence·proposalStore가 없을 때(loading)
+const NO_SUBSCRIBE = () => () => {};
+const NO_SESSION = () => null;
+const NO_PARTICIPANTS: Participant[] = [];
+const GET_NO_PARTICIPANTS = () => NO_PARTICIPANTS;
 
 function SheetWorkspace() {
   const session = useSheetSession();
@@ -41,12 +61,52 @@ function SheetWorkspace() {
     },
     [presence],
   );
+
+  // 내 AI 세션의 단계·대상 범위를 구독해 다른 탭에 작업 표시를 발행한다 (X2),
+  // 그리고 다른 참여자의 작업과 겹치는지 경고한다 (X3).
+  const aiSession = useSyncExternalStore(
+    proposalStore?.subscribe ?? NO_SUBSCRIBE,
+    proposalStore?.getSession ?? NO_SESSION,
+    NO_SESSION,
+  );
+  const participants = useSyncExternalStore(
+    presence?.subscribe ?? NO_SUBSCRIBE,
+    presence?.getParticipants ?? GET_NO_PARTICIPANTS,
+    GET_NO_PARTICIPANTS,
+  );
+
+  const aiPhase: AiTaskPayload["phase"] | null =
+    aiSession?.status === "generating"
+      ? "generating"
+      : aiSession?.status === "complete"
+        ? "reviewing"
+        : null;
+  const aiTargetRange = aiSession?.targetRange ?? null;
+  useEffect(() => {
+    presence?.setAiTask(aiPhase ? { range: aiTargetRange, phase: aiPhase } : null);
+  }, [presence, aiPhase, aiTargetRange]);
+
+  // 내 선택과 겹치는 범위에서 AI 작업 중인 참여자 (X3). 단일 셀 선택을 시트
+  // 전체로 부풀리지 않는다 — 멀리 떨어진 작업까지 경고하면 노이즈가 된다.
+  // 범위 미지정으로 보낸 요청이 실제로 겹쳐 충돌하는 경우는 적용 시 X1이 잡는다.
+  // 상대가 시트 전체 작업(range=null) 중이면 어느 셀이든 겹치므로 경고한다.
+  const overlapper = participants.find(
+    (p) =>
+      !p.isLocal &&
+      isAiTaskPayload(p.aiTask) &&
+      (p.aiTask.range === null || rangeOverlaps(p.aiTask.range, cursor.range)),
+  );
+  const overlapWarning = overlapper
+    ? `${overlapper.name}님이 이 범위에서 AI 작업 중입니다`
+    : null;
+
   // 커서 미러 setState가 매 선택 변경마다 이 컴포넌트를 리렌더하므로,
   // overlay 엘리먼트를 고정해 memo된 SheetGrid가 두 번 렌더되지 않게 한다
   const overlay = useMemo(
     () => (
       <>
         {presence && <RemoteSelectionOverlay presence={presence} />}
+        {presence && <RemoteAiTaskOverlay presence={presence} />}
         {proposalStore && <AiTargetOverlay proposalStore={proposalStore} />}
       </>
     ),
@@ -133,6 +193,7 @@ function SheetWorkspace() {
             <AiPanel
               proposalStore={proposalStore}
               cursor={cursor}
+              overlapWarning={overlapWarning}
               onClose={() => setAiOpen(false)}
             />
           </div>

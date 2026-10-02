@@ -20,3 +20,8 @@ export {
   RemoteSelectionOverlay,
   type SheetCursor,
 } from "./ui/RemoteSelectionOverlay";
+export {
+  RemoteAiTaskOverlay,
+  isAiTaskPayload,
+  type AiTaskPayload,
+} from "./ui/RemoteAiTaskOverlay";

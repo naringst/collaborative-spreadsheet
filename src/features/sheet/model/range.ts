@@ -55,3 +55,15 @@ export function cellsInRange(range: CellRange): CellAddress[] {
   }
   return cells;
 }
+
+/** 두 범위가 한 셀이라도 겹치는가 (X3 동시 요청 경고) */
+export function rangeOverlaps(a: CellRange, b: CellRange): boolean {
+  const x = normalizeRange(a);
+  const y = normalizeRange(b);
+  return (
+    x.left <= y.right &&
+    x.right >= y.left &&
+    x.top <= y.bottom &&
+    x.bottom >= y.top
+  );
+}

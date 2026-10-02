@@ -9,12 +9,16 @@ export interface Participant {
   color: string;
   /** collab 코어는 셀 개념을 모른다 — 구체 타입(SheetCursor)은 collab/ui에 있다 */
   cursor: unknown;
+  /** 이 참여자가 AI 편집을 생성·검토 중인 범위·단계. 없으면 null (X2) */
+  aiTask: unknown;
   isLocal: boolean;
 }
 
 export interface Presence {
   setName(name: string): void;
   setCursor(cursor: unknown): void;
+  /** AI 작업 표시를 다른 탭에 알린다. null이면 지운다 (X2) */
+  setAiTask(task: unknown): void;
   getParticipants(): Participant[];
   subscribe(listener: () => void): () => void;
   /** provider 연결용 — session에서만 사용 */
@@ -35,6 +39,7 @@ export function createPresence(opts: {
     name: generateName(),
     color: pickColor(collectColors(awareness, doc.clientID)),
     cursor: null,
+    aiTask: null,
   });
 
   let cached: Participant[] = buildParticipants(awareness, doc.clientID);
@@ -83,6 +88,7 @@ export function createPresence(opts: {
         name: generateName(),
         color: pickColor(collectColors(awareness, doc.clientID)),
         cursor: null,
+        aiTask: null,
       });
     }
   };
@@ -109,6 +115,9 @@ export function createPresence(opts: {
     },
     setCursor(cursor) {
       awareness.setLocalStateField("cursor", cursor);
+    },
+    setAiTask(task) {
+      awareness.setLocalStateField("aiTask", task);
     },
     getParticipants: () => cached,
     subscribe(listener) {
@@ -152,6 +161,7 @@ function buildParticipants(
           : "익명",
       color: typeof state.color === "string" ? state.color : "#64748b",
       cursor: state.cursor ?? null,
+      aiTask: state.aiTask ?? null,
       isLocal: clientId === ownClientId,
     });
   }

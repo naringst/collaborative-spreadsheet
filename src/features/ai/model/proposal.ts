@@ -37,11 +37,25 @@ export function aiErrorMessage(kind: AiErrorKind): string {
   return MESSAGES[kind];
 }
 
+/**
+ * 충돌 셀의 선택 (X1). 명세대로 원래값·현재값·AI값 중 고른다.
+ * - keep: 현재 값 유지(덮어쓰지 않음) — 기본. 다른 참여자 편집을 보존한다.
+ * - base: 요청 시점의 원래 값으로 되돌린다.
+ * - ai: AI 제안 값으로 덮어쓴다.
+ */
+export type CellResolution = "keep" | "base" | "ai";
+
 export interface ProposalCell {
   addr: CellAddress;
-  /** 요청 시점의 셀 값 — 적용 시 현재 값과 비교해 충돌을 판정한다 (X1, 묶음 3) */
+  /** 요청 시점의 셀 값 — 현재 값과 비교해 충돌을 판정한다 (X1) */
   baseValue: string;
   proposedValue: string;
+  /** 현재 시트 값. store가 원격 변경마다 갱신한다 (X1 실시간) */
+  currentValue: string;
+  /** currentValue ≠ baseValue — 요청 후 다른 참여자가 바꿨다 (X1) */
+  conflict: boolean;
+  /** 충돌 셀에만 의미. 사용자가 고른다. 비충돌 셀은 항상 AI 값 적용 */
+  resolution: CellResolution;
 }
 
 export function canApply(status: ProposalStatus): boolean {

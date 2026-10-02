@@ -25,10 +25,14 @@ export function AiTargetOverlay({
     <>
       {session.cells.map((cell) => {
         const rect = cellRect(cell.addr.row, cell.addr.col);
+        // 충돌 셀은 경고색으로 구분한다 — 그새 다른 참여자가 바꾼 셀 (X1)
+        const tone = cell.conflict
+          ? "border-danger bg-danger/10"
+          : "border-accent bg-accent/10";
         return (
           <div
             key={cellKey(cell.addr)}
-            className="border-accent bg-accent/10 pointer-events-none absolute z-[4] border-2 border-dashed"
+            className={`pointer-events-none absolute z-[4] border-2 border-dashed ${tone}`}
             style={rect}
           />
         );

@@ -88,6 +88,49 @@ async function flush() {
   await Promise.resolve();
 }
 
+/**
+ * 다른 참여자가 셀을 바꾼 상황을 흉내낸다.
+ * 두 번째 doc에서 편집한 뒤 그 update를 원격 origin으로 main doc에 적용한다.
+ * → getCellValue가 새 값을 반환하고, store 구독 리스너가 원격 변경으로 fire된다.
+ */
+function remoteSetCell(
+  doc: Y.Doc,
+  addr: CellAddress,
+  value: string,
+) {
+  const remoteDoc = new Y.Doc();
+  Y.applyUpdate(remoteDoc, Y.encodeStateAsUpdate(doc));
+  const remoteStore = createSheetStore(remoteDoc);
+  remoteStore.setCellValue(addr, value);
+  const update = Y.encodeStateAsUpdate(remoteDoc, Y.encodeStateVector(doc));
+  Y.applyUpdate(doc, update, "remote");
+}
+
+function cellAt(
+  proposals: ReturnType<typeof setup>["proposals"],
+  addr: CellAddress,
+) {
+  return proposals
+    .getSession()
+    ?.cells.find((c) => c.addr.row === addr.row && c.addr.col === addr.col);
+}
+
+/** complete 상태가 될 때까지 기다린다 */
+function startAndComplete(
+  proposals: ReturnType<typeof setup>["proposals"],
+  input: Parameters<ReturnType<typeof setup>["proposals"]["start"]>[0],
+) {
+  return new Promise<void>((r) => {
+    const unsub = proposals.subscribe(() => {
+      if (proposals.getSession()?.status === "complete") {
+        unsub();
+        r();
+      }
+    });
+    proposals.start(input);
+  });
+}
+
 describe("A4/D10 proposal-store — 취소", () => {
   it("cancel하면 status=cancelled, 받은 cells는 유지, apply 무효, signal aborted", async () => {
     const ctl = controllableSource();
@@ -409,5 +452,147 @@ describe("A4 proposal-store — AbortSignal / 늦은 onItem 무시", () => {
     await Promise.resolve();
     // 여전히 새 세션이 생기지 않아야 한다
     expect(proposals.getSession()).toBeNull();
+  });
+});
+
+describe("X1 proposal-store — 충돌 판정과 적용", () => {
+  it("현재 값이 base와 같으면 conflict=false, apply 시 AI 값이 적용된다", async () => {
+    const { store, proposals } = setup(
+      syncSource([{ row: 0, col: 0, value: "ai" }]),
+    );
+    await startAndComplete(proposals, {
+      prompt: "x",
+      targetRange: null,
+      cursor: singleCursor,
+    });
+
+    const cell = cellAt(proposals, A1);
+    expect(cell?.conflict).toBe(false);
+    expect(cell?.currentValue).toBe("");
+    expect(cell?.baseValue).toBe("");
+
+    proposals.apply();
+    expect(store.getCellValue(A1)).toBe("ai");
+  });
+
+  it("요청 후 다른 참여자가 셀을 바꾸면 conflict=true, currentValue가 실시간 갱신된다", async () => {
+    const { doc, proposals } = setup(
+      syncSource([{ row: 0, col: 0, value: "ai" }]),
+    );
+    await startAndComplete(proposals, {
+      prompt: "x",
+      targetRange: null,
+      cursor: singleCursor,
+    });
+    expect(cellAt(proposals, A1)?.conflict).toBe(false);
+
+    // 다른 참여자가 A1을 바꿈 → 원격 변경이 store로 들어온다
+    remoteSetCell(doc, A1, "theirs");
+
+    const cell = cellAt(proposals, A1);
+    expect(cell?.conflict).toBe(true);
+    expect(cell?.currentValue).toBe("theirs");
+    expect(cell?.baseValue).toBe("");
+  });
+
+  it("충돌 셀은 기본(keep)이라 apply에서 건너뛰고, 비충돌 셀만 적용된다", async () => {
+    const { doc, store, proposals } = setup(
+      syncSource([
+        { row: 0, col: 0, value: "ai-a" }, // 충돌시킬 셀
+        { row: 1, col: 1, value: "ai-b" }, // 비충돌 셀
+      ]),
+    );
+    await startAndComplete(proposals, {
+      prompt: "x",
+      targetRange: null,
+      cursor: singleCursor,
+    });
+
+    remoteSetCell(doc, A1, "theirs");
+    expect(cellAt(proposals, A1)?.conflict).toBe(true);
+    expect(cellAt(proposals, A1)?.resolution).toBe("keep");
+
+    proposals.apply();
+    // 충돌 셀은 덮어쓰지 않음: 상대 값 유지
+    expect(store.getCellValue(A1)).toBe("theirs");
+    // 비충돌 셀은 AI 값 적용
+    expect(store.getCellValue(B2)).toBe("ai-b");
+  });
+
+  it("충돌 셀에 setResolution(addr,'ai') 후 apply하면 그 셀도 AI 값으로 적용된다", async () => {
+    const { doc, store, proposals } = setup(
+      syncSource([{ row: 0, col: 0, value: "ai-a" }]),
+    );
+    await startAndComplete(proposals, {
+      prompt: "x",
+      targetRange: null,
+      cursor: singleCursor,
+    });
+    remoteSetCell(doc, A1, "theirs");
+    expect(cellAt(proposals, A1)?.conflict).toBe(true);
+
+    proposals.setResolution(A1, "ai");
+    proposals.apply();
+    expect(store.getCellValue(A1)).toBe("ai-a");
+  });
+
+  it("충돌 셀에 setResolution(addr,'base') 후 apply하면 요청 시점 원래 값으로 되돌린다", async () => {
+    const { doc, store, proposals } = setup(
+      syncSource([{ row: 0, col: 0, value: "ai-a" }]),
+    );
+    remoteSetCell(doc, A1, "original"); // 요청 전 원래 값
+    await startAndComplete(proposals, {
+      prompt: "x",
+      targetRange: null,
+      cursor: singleCursor,
+    });
+    remoteSetCell(doc, A1, "theirs"); // 요청 후 다른 참여자가 바꿈
+    expect(cellAt(proposals, A1)?.conflict).toBe(true);
+
+    proposals.setResolution(A1, "base");
+    proposals.apply();
+    expect(store.getCellValue(A1)).toBe("original");
+  });
+
+  it("setResolution으로 고른 값은 이후 원격 변경(충돌 재계산)에도 보존된다", async () => {
+    const { doc, proposals } = setup(
+      syncSource([{ row: 0, col: 0, value: "ai-a" }]),
+    );
+    await startAndComplete(proposals, {
+      prompt: "x",
+      targetRange: null,
+      cursor: singleCursor,
+    });
+    remoteSetCell(doc, A1, "theirs");
+    proposals.setResolution(A1, "ai");
+    expect(cellAt(proposals, A1)?.resolution).toBe("ai");
+
+    // 또 다른 원격 변경이 들어와 충돌이 재계산되어도 resolution은 유지된다
+    remoteSetCell(doc, A1, "theirs-2");
+    const cell = cellAt(proposals, A1);
+    expect(cell?.resolution).toBe("ai");
+    expect(cell?.currentValue).toBe("theirs-2");
+    expect(cell?.conflict).toBe(true);
+  });
+
+  it("destroy 후 원격 변경이 와도 세션이 갱신되지 않는다 (구독 해제)", async () => {
+    const { doc, proposals } = setup(
+      syncSource([{ row: 0, col: 0, value: "ai" }]),
+    );
+    await startAndComplete(proposals, {
+      prompt: "x",
+      targetRange: null,
+      cursor: singleCursor,
+    });
+
+    let fired = 0;
+    proposals.subscribe(() => {
+      fired += 1;
+    });
+    proposals.destroy();
+    fired = 0;
+
+    remoteSetCell(doc, A1, "theirs");
+    expect(fired).toBe(0);
   });
 });

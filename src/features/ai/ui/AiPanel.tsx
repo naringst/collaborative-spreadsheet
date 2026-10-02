@@ -5,15 +5,23 @@ import {
   cellLabel,
   isSingleCell,
   rangeLabel,
+  type CellAddress,
   type GridCursor,
 } from "@/features/sheet";
-import { aiErrorMessage, canApply } from "../model/proposal";
+import {
+  aiErrorMessage,
+  canApply,
+  type CellResolution,
+  type ProposalCell,
+} from "../model/proposal";
 import type { ProposalSession, ProposalStore } from "../store/proposal-store";
 
 interface AiPanelProps {
   proposalStore: ProposalStore;
   /** 현재 선택 — 범위가 지정돼 있으면 요청 대상이 된다 (A2/D8) */
   cursor: GridCursor;
+  /** 다른 참여자가 겹치는 범위에서 AI 작업 중이면 경고 문구 (X3) */
+  overlapWarning: string | null;
   onClose(): void;
 }
 
@@ -42,7 +50,12 @@ const EXAMPLE_PROMPTS = [
 ];
 
 /** AI 채팅·제안 검토 패널 (A1·A3) */
-export function AiPanel({ proposalStore, cursor, onClose }: AiPanelProps) {
+export function AiPanel({
+  proposalStore,
+  cursor,
+  overlapWarning,
+  onClose,
+}: AiPanelProps) {
   const [prompt, setPrompt] = useState("");
   // 지난 요청은 UI에만 남긴다 — 제안 상태의 원본은 store의 현재 세션 하나다
   const [history, setHistory] = useState<PastTurn[]>([]);
@@ -162,12 +175,21 @@ export function AiPanel({ proposalStore, cursor, onClose }: AiPanelProps) {
               }}
               onCancel={() => proposalStore.cancel()}
               onRetry={() => proposalStore.retry()}
+              onSetResolution={(addr, resolution) =>
+                proposalStore.setResolution(addr, resolution)
+              }
             />
           </div>
         )}
       </div>
 
       <div className="border-line border-t p-3">
+        {/* 겹치는 범위에 다른 참여자가 AI 작업 중 — 경고만, 진행은 막지 않는다 (X3) */}
+        {overlapWarning && (
+          <div className="bg-danger/5 text-danger mb-2 rounded-md px-2 py-1 text-[12px]">
+            {overlapWarning}
+          </div>
+        )}
         <div className="border-line-2 bg-surface-2 focus-within:border-accent flex flex-col gap-1.5 rounded-lg border p-2">
           {targetChip && (
             <div className="bg-accent-soft text-accent self-start rounded-md px-1.5 py-0.5 font-mono text-[11px]">
@@ -248,17 +270,21 @@ function ProposalCard({
   onDiscard,
   onCancel,
   onRetry,
+  onSetResolution,
 }: {
   session: ProposalSession;
   onApply(): void;
   onDiscard(): void;
   onCancel(): void;
   onRetry(): void;
+  onSetResolution(addr: CellAddress, resolution: CellResolution): void;
 }) {
   const SECONDARY =
     "h-7 flex-1 rounded-md border border-line-2 px-2 text-[12px] text-ink-2 hover:bg-surface-3";
   const PRIMARY =
     "h-7 flex-1 rounded-md bg-ink px-2 text-[12px] font-medium text-surface disabled:opacity-40";
+
+  const conflictCount = session.cells.filter((c) => c.conflict).length;
 
   return (
     <div className="border-line flex max-w-[94%] flex-col gap-2 self-start rounded-lg rounded-bl-sm border p-2.5">
@@ -281,25 +307,41 @@ function ProposalCard({
         </p>
       )}
 
+      {/* 검토 중 다른 참여자가 대상 셀을 바꾸면 충돌로 안내한다 (X1) */}
+      {canApply(session.status) && conflictCount > 0 && (
+        <p className="text-danger text-[12px]">
+          {conflictCount}개 셀을 그새 다른 참여자가 바꿨습니다. 기본은 그 값을
+          유지하며, 셀마다 선택할 수 있습니다.
+        </p>
+      )}
+
       {session.cells.length > 0 && (
         <ul className="flex flex-col gap-1">
-          {session.cells.map((cell) => (
-            <li
-              key={cellLabel(cell.addr)}
-              className="bg-surface-2 flex items-baseline gap-2 rounded-md px-2 py-1"
-            >
-              <span className="text-ink-3 w-8 shrink-0 font-mono text-[11px]">
-                {cellLabel(cell.addr)}
-              </span>
-              <span className="text-ink-3 min-w-0 truncate line-through">
-                {cell.baseValue || "(빈 셀)"}
-              </span>
-              <span className="text-ink-3 shrink-0">→</span>
-              <span className="text-ink min-w-0 truncate font-medium">
-                {cell.proposedValue}
-              </span>
-            </li>
-          ))}
+          {session.cells.map((cell) =>
+            cell.conflict ? (
+              <ConflictRow
+                key={cellLabel(cell.addr)}
+                cell={cell}
+                onSetResolution={onSetResolution}
+              />
+            ) : (
+              <li
+                key={cellLabel(cell.addr)}
+                className="bg-surface-2 flex items-baseline gap-2 rounded-md px-2 py-1"
+              >
+                <span className="text-ink-3 w-8 shrink-0 font-mono text-[11px]">
+                  {cellLabel(cell.addr)}
+                </span>
+                <span className="text-ink-3 min-w-0 truncate line-through">
+                  {cell.baseValue || "(빈 셀)"}
+                </span>
+                <span className="text-ink-3 shrink-0">→</span>
+                <span className="text-ink min-w-0 truncate font-medium">
+                  {cell.proposedValue}
+                </span>
+              </li>
+            ),
+          )}
         </ul>
       )}
 
@@ -334,6 +376,64 @@ function ProposalCard({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * 충돌 셀 한 줄 (X1): 원래값·현재값·AI값을 보여 주고 어느 값을 쓸지 고르게 한다.
+ * 기본은 "현재 유지" — 다른 참여자가 직접 한 편집을 조용히 덮지 않는다.
+ */
+function ConflictRow({
+  cell,
+  onSetResolution,
+}: {
+  cell: ProposalCell;
+  onSetResolution(addr: CellAddress, resolution: CellResolution): void;
+}) {
+  // 원래값·현재값·AI값 세 선택지를 나란히 보여 준다 (X1 명세). 기본은 현재 유지.
+  const choice = (resolution: CellResolution, label: string, value: string) => {
+    const selected = cell.resolution === resolution;
+    return (
+      <button
+        type="button"
+        onClick={() => onSetResolution(cell.addr, resolution)}
+        aria-pressed={selected}
+        className={`flex items-center gap-2 rounded-md border px-2 py-1 text-left ${
+          selected
+            ? "border-accent bg-accent-soft"
+            : "border-line-2 hover:bg-surface-3"
+        }`}
+      >
+        <span
+          className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border ${
+            selected ? "border-accent" : "border-line-2"
+          }`}
+        >
+          {selected && <span className="bg-accent h-2 w-2 rounded-full" />}
+        </span>
+        <span className="text-ink-3 w-12 shrink-0 text-[11px]">{label}</span>
+        <span className="text-ink min-w-0 flex-1 truncate text-[12px]">
+          {value || "(빈 셀)"}
+        </span>
+      </button>
+    );
+  };
+  return (
+    <li className="border-danger/40 bg-danger/5 flex flex-col gap-1.5 rounded-md border px-2 py-2">
+      <div className="flex items-center gap-1.5">
+        <span className="text-ink-3 font-mono text-[11px]">
+          {cellLabel(cell.addr)}
+        </span>
+        <span className="text-danger text-[10px]">
+          다른 참여자가 바꿈 — 적용할 값을 고르세요
+        </span>
+      </div>
+      <div className="flex flex-col gap-1">
+        {choice("base", "원래값", cell.baseValue)}
+        {choice("keep", "현재값", cell.currentValue)}
+        {choice("ai", "AI값", cell.proposedValue)}
+      </div>
+    </li>
   );
 }
 

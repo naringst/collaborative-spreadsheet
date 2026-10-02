@@ -20,6 +20,7 @@ export {
 export {
   normalizeRange,
   rangeContains,
+  rangeOverlaps,
   rangeLabel,
   isSingleCell,
   type CellRange,

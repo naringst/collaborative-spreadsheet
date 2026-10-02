@@ -49,5 +49,14 @@ export function parseProposalItem(
   const addr: CellAddress = { row, col };
   if (targetRange && !rangeContains(targetRange, addr)) return null; // D8
 
-  return { addr, baseValue: base(addr), proposedValue: value };
+  // 생성 시점엔 현재 값 = base라 충돌 없음. store가 원격 변경마다 갱신한다 (X1).
+  const baseValue = base(addr);
+  return {
+    addr,
+    baseValue,
+    proposedValue: value,
+    currentValue: baseValue,
+    conflict: false,
+    resolution: "keep",
+  };
 }
