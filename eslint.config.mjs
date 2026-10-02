@@ -28,8 +28,8 @@ const eslintConfig = defineConfig([
           patterns: [
             noDeepFeatureImport,
             {
-              group: ["@/features/collab", "@/features/ai", "@/session"],
-              message: "sheet는 collab·ai·session에 의존하지 않습니다.",
+              group: ["@/features/collab", "@/features/ai", "@/composition"],
+              message: "sheet는 collab·ai·composition에 의존하지 않습니다.",
             },
           ],
         },
@@ -48,8 +48,8 @@ const eslintConfig = defineConfig([
           patterns: [
             noDeepFeatureImport,
             {
-              group: ["@/features/sheet", "@/features/ai", "@/session"],
-              message: "collab은 sheet·ai·session에 의존하지 않습니다.",
+              group: ["@/features/sheet", "@/features/ai", "@/composition"],
+              message: "collab은 sheet·ai·composition에 의존하지 않습니다.",
             },
           ],
         },

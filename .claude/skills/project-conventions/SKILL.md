@@ -19,7 +19,7 @@ description: 이 저장소의 폴더 구조, 의존 방향, Yjs·React 사용 �
 | `src/features/sheet-list/`  | 시트 목록(id·이름·생성시각) Y.Doc 구조와 ops, 목록 UI        | 셀 개념, 라우팅·세션 조립  |
 | `src/features/collab/ui/`   | 참여자 목록, 다른 참여자 선택 오버레이                       | Yjs 문서 수정              |
 | `src/features/ai/`          | (3단계) 스키마, diff·충돌 판정, 스트리밍 클라이언트, AI 패널 | 시트 직접 수정 (ops 사용)  |
-| `src/session/`              | Y.Doc·저장·동기화·undo 생성과 해제, Context 제공             | 기능 로직                  |
+| `src/composition/`              | Y.Doc·저장·동기화·undo 생성과 해제, Context 제공             | 기능 로직                  |
 | `src/shared/`               | 기능과 무관한 공통 UI·유틸                                   | 특정 feature에 속하는 코드 |
 
 ## 의존 방향 (ESLint로 강제)
@@ -27,12 +27,12 @@ description: 이 저장소의 폴더 구조, 의존 방향, Yjs·React 사용 �
 ```
 ai ──→ sheet ←── collab/ui
          ↑
-      session (조립)
+      composition (조립)
 ```
 
 - 다른 feature는 `@/features/<name>`(index.ts)으로만 import한다. 내부 파일은 feature 안에서 상대 경로로만.
-- `sheet`는 `collab`·`ai`·`session`을 모른다. `collab` 코어는 `sheet`를 모른다.
-- feature 사이의 연결은 `session`에서만 한다.
+- `sheet`는 `collab`·`ai`·`composition`을 모른다. `collab` 코어는 `sheet`를 모른다.
+- feature 사이의 연결은 `composition`에서만 한다.
 - 그리드 위 표시(다른 참여자 선택, AI 대상 범위)는 `Grid`의 overlay 자리에 각 feature가 레이어로 끼워 넣는다. `Grid`가 이들을 import하지 않는다.
 
 ## 상태는 한 곳에만

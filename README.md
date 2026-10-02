@@ -208,7 +208,7 @@ AI 편집은 A1~A7·X1~X3으로 커서 3개 하위 묶음으로 나눠 진행했
 
 여러 시트를 만들고 오갈 수 있어야 합니다(`/`=목록, `/sheet/[id]`=편집).
 
-- **별도 feature `sheet-list`**: 시트 목록은 셀 도메인이 아니라 `features/sheet`에 넣지 않고, `collab`은 시트 개념을 금지하며, `session`은 조립 전용이다. 목록 데이터·ops는 새 feature가 소유한다.
+- **별도 feature `sheet-list`**: 시트 목록은 셀 도메인이 아니라 `features/sheet`에 넣지 않고, `collab`은 시트 개념을 금지하며, `composition`은 조립 전용이다. 목록 데이터·ops는 새 feature가 소유한다.
 - **별도 Y.Doc(`sheet-registry`)**: 시트 목록은 셀과 독립적으로 동기화·영속되어야 하므로 전용 문서를 둔다. 셀과 같은 평탄 키(`"{id}:name"`, `"{id}:createdAt"`)로 저장해 동시 생성 시 컨테이너 LWW 소실을 막는다. 참여자 개념이 없어 provider의 `awareness`를 optional로 두고 목록 doc에는 넘기지 않는다.
 - **목록 세션을 루트 레이아웃에서 공유**: `/`와 `/sheet/[id]`가 같은 registry doc 인스턴스를 쓴다. 각 화면이 별도 세션을 만들면, 생성 직후 이동한 편집 화면이 아직 IndexedDB에 flush되지 않은 시트를 못 찾고(재브로드캐스트할 이전 provider도 이미 해제됨) "찾을 수 없음"에 갇힐 수 있다. 공유하면 방금 만든 시트를 게이트가 즉시 본다.
 - **존재 확인 후에만 시트 세션 마운트**: 없는 id 접속이 빈 `sheet-{id}` IndexedDB를 만들지 않게 한다. 목록 로드 전에는 판정할 수 없어 로딩을 표시하고, 다른 탭이 방금 만든 시트라면 동기화가 도착하는 대로 자동으로 편집 화면으로 전환된다.
@@ -220,7 +220,7 @@ AI 편집은 A1~A7·X1~X3으로 커서 3개 하위 묶음으로 나눠 진행했
 
 - **선택**: 처음부터 `cells: Y.Map`에 저장하고, UI는 store의 `subscribe`/`getCellValue`(`useSyncExternalStore`)로만 읽는다. 로컬 편집은 전부 `LOCAL_ORIGIN` transact로 실행한다.
 - **검토한 대안**: React `Map` 상태로 시작 — 1단계 코드는 약간 단순하지만 2단계에서 전면 재작성.
-- **트레이드오프**: provider 없는 Y.Doc은 관찰 가능한 Map일 뿐이라 1단계 비용은 거의 없다. 2단계에서는 session에 persistence·provider·UndoManager만 추가하면 되고 store·UI는 바뀌지 않는다.
+- **트레이드오프**: provider 없는 Y.Doc은 관찰 가능한 Map일 뿐이라 1단계 비용은 거의 없다. 2단계에서는 composition에 persistence·provider·UndoManager만 추가하면 되고 store·UI는 바뀌지 않는다.
 
 ### 셀 편집기: 항상 포커스를 유지하는 단일 input
 
@@ -248,19 +248,19 @@ src/
     sheet/             # 셀 주소·범위(model), Y.Doc 구조·편집 연산·undo(store), 그리드 UI(ui)
     collab/            # IndexedDB 영속화, BroadcastChannel 동기화, presence
     ai/                # (3단계) AI 편집
-  session/             # 기능 조립: Y.Doc·저장·동기화·undo 생성과 해제
+  composition/             # 기능 조립: Y.Doc·저장·동기화·undo 생성과 해제
   shared/              # 기능과 무관한 공통 UI·유틸
 ```
 
 ```
 ai ──→ sheet ←── collab/ui
          ↑
-      session (조립)
+      composition (조립)
 ```
 
 - **`sheet`는 `collab`·`ai`를 모릅니다.** 탭이 하나든 여러 개든 똑같이 동작하는 편집 로직만 담습니다.
 - **`collab` 코어는 Y.Doc만 다룹니다.** 셀이라는 개념을 몰라서, 네트워크 동기화로 확장할 때 이 폴더의 provider만 교체하면 됩니다. 그리드 위에 다른 참여자의 선택 범위를 그리는 `collab/ui`만 `sheet`의 공개 API를 사용합니다.
-- **기능 사이의 연결은 `session`에서만** 합니다.
+- **기능 사이의 연결은 `composition`에서만** 합니다.
 - **각 feature는 `index.ts`로만 공개**합니다. 내부 파일 직접 import와 위 의존 방향 위반은 ESLint `no-restricted-imports`로 막습니다.
 - **그리드 위 표시는 레이어로 끼워 넣습니다.** `Grid`는 좌표 계산과 오버레이 자리만 제공하고, 다른 참여자의 선택 표시나 AI 제안 하이라이트는 각 feature가 자기 레이어로 전달합니다. `Grid`가 이들을 직접 import하면 `sheet`가 `collab`·`ai`에 의존하게 되기 때문입니다.
 - 각 feature 안에서는 순수 로직(`model/`)과 외부에 닿는 코드(Yjs, IndexedDB, React)를 나눠 순수 로직을 단위 테스트합니다.
