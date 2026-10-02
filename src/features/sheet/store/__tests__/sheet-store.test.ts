@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
-import { LOCAL_ORIGIN, createSheetStore } from "./sheet-store";
+import { LOCAL_ORIGIN, createSheetStore } from "../sheet-store";
 
 const A1 = { row: 0, col: 0 };
 const B2 = { row: 1, col: 1 };

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
-import type { CellAddress } from "../model/cell";
-import { createSheetStore } from "./sheet-store";
-import { createSheetUndo } from "./undo";
+import type { CellAddress } from "../../model/cell";
+import { createSheetStore } from "../sheet-store";
+import { createSheetUndo } from "../undo";
 
 const A1: CellAddress = { row: 0, col: 0 };
 const B2: CellAddress = { row: 1, col: 1 };

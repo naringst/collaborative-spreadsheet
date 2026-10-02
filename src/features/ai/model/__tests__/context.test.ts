@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CellFormatName } from "@/features/sheet";
 import type { GridCursor } from "@/features/sheet";
 import type { CellSnapshot } from "@/features/sheet";
-import { buildContext } from "./context";
+import { buildContext } from "../context";
 
 function cursor(range: GridCursor["range"]): GridCursor {
   return { range, editing: null };

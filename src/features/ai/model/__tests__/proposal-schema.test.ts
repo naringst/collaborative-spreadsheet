@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CellAddress } from "@/features/sheet";
 import type { CellRange } from "@/features/sheet";
-import { parseProposalItem } from "./proposal-schema";
+import { parseProposalItem } from "../proposal-schema";
 
 // base()가 항상 빈 문자열을 주는 기본 스텁. baseValue 출처 검증에서 교체한다.
 const emptyBase = (): string => "";

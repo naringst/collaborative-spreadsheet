@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import type { CellAddress, CellRange, GridCursor } from "@/features/sheet";
 import { createSheetStore, createSheetUndo } from "@/features/sheet";
-import { AiError, canApply } from "../model/proposal";
-import { createProposalStore, type ProposalSource } from "./proposal-store";
+import { AiError, canApply } from "../../model/proposal";
+import { createProposalStore, type ProposalSource } from "../proposal-store";
 
 const A1: CellAddress = { row: 0, col: 0 };
 const B2: CellAddress = { row: 1, col: 1 };

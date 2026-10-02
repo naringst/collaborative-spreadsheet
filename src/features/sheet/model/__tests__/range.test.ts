@@ -4,9 +4,9 @@ import {
   normalizeRange,
   rangeContains,
   rangeOverlaps,
-} from "./range";
-import type { CellRange } from "./range";
-import { cellKey } from "./cell";
+} from "../range";
+import type { CellRange } from "../range";
+import { cellKey } from "../cell";
 
 function range(
   a: [number, number],

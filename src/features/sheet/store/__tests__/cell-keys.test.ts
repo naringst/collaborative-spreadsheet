@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { formatKey, styleKey, parseCellKey } from "./cell-keys";
-import type { CellAddress } from "../model/cell";
-import type { CellFormatName, CellStyleName } from "../model/cell-format";
+import { formatKey, styleKey, parseCellKey } from "../cell-keys";
+import type { CellAddress } from "../../model/cell";
+import type { CellFormatName, CellStyleName } from "../../model/cell-format";
 
 describe("D4 셀 저장 키 인코딩 — formatKey", () => {
   it("r:c:format 형식으로 인코딩한다", () => {
@@ -13,7 +13,9 @@ describe("D4 셀 저장 키 인코딩 — formatKey", () => {
   });
 
   it("최대 좌표(99,25)", () => {
-    expect(formatKey({ row: 99, col: 25 }, "underline")).toBe("99:25:underline");
+    expect(formatKey({ row: 99, col: 25 }, "underline")).toBe(
+      "99:25:underline",
+    );
   });
 
   it("모든 토글 서식 이름을 그대로 담는다", () => {

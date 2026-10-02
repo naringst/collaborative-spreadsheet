@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createChangesExtractor } from "./stream-extract";
+import { createChangesExtractor } from "../stream-extract";
 
 /** 문자열을 임의 경계로 쪼개 순서대로 push하고, 반환된 객체들을 모은다 */
 function pushChunks(chunks: string[]): unknown[] {

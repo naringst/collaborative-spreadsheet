@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSystemPrompt, describeLabel, renderSheetTable } from "./prompt";
+import { buildSystemPrompt, describeLabel, renderSheetTable } from "../prompt";
 
 describe("D9 renderSheetTable — 값 영역을 행 단위 표로", () => {
   it("bounding box 안의 빈 셀은 · 로 자리를 차지한다", () => {

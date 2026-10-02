@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
-import { DEFAULT_SHEET_NAME, createSheetListStore } from "./sheet-list-store";
+import { DEFAULT_SHEET_NAME, createSheetListStore } from "../sheet-list-store";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

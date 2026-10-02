@@ -7,7 +7,7 @@ import {
   isNumericValue,
   isSameCell,
   moveWithinGrid,
-} from "./cell";
+} from "../cell";
 
 describe("S7 그리드 크기 (D1)", () => {
   it("100행 × 26열 고정", () => {

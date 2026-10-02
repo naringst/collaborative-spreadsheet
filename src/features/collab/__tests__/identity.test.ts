@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PARTICIPANT_PALETTE, generateName, pickColor } from "./identity";
+import { PARTICIPANT_PALETTE, generateName, pickColor } from "../identity";
 
 describe("D2 참여자 이름", () => {
   it('"형용사 동물" 형태(공백으로 구분된 두 단어)를 반환한다', () => {
